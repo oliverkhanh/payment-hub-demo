@@ -26,56 +26,8 @@ spring:
         jwt:
           jwk-set-uri: ${IDP_JWK_SET_URI:http://localhost:9000/oauth2/jwks}
 
-# ─── Increment 3 + 4 ───
+# ─── Increment 3 ───
 hub:
-  # Increment 4: danh sách ngân hàng Hub hỗ trợ.
-  # Ở config chứ không ở DB — 3 dòng cố định, do người cấu hình một lần.
-  # Tắt một bank (bảo trì) = đổi enabled: false; merchant KHÔNG phải làm gì.
-  #
-  # ⚠️ api-key / api-secret ở đây do BANK CẤP CHO HUB — ngược chiều với Inc 3.
-  #    Mỗi bank MỘT bộ riêng: Hub phải đối xử với VCB/TCB/ACB như 3 hệ thống độc lập,
-  #    lộ secret của ACB không được phép ảnh hưởng tới VCB.
-  # ⚠️ DEV-ONLY. Production: AWS Secrets Manager (CLAUDE.md #8).
-  #
-  # base-url là địa chỉ SERVER->SERVER. Trong docker-compose nó là service name
-  # (http://fake-bank:8080); default dưới đây dành cho lúc chạy Hub trực tiếp ở máy.
-  banks:
-    VCB:
-      display-name: Vietcombank
-      enabled: true
-      order: 1          # đầu danh sách = được chọn sẵn
-      base-url: ${HUB_BANK_VCB_BASE_URL:http://localhost:8082}
-      api-key: ${HUB_BANK_VCB_API_KEY:hub_key_vcb_dev}
-      api-secret: ${HUB_BANK_VCB_API_SECRET:vcb_secret_dev_only_do_not_use_in_prod}
-      connect-timeout-ms: ${HUB_BANK_VCB_CONNECT_TIMEOUT_MS:2000}
-      read-timeout-ms: ${HUB_BANK_VCB_READ_TIMEOUT_MS:5000}
-      max-retries: ${HUB_BANK_VCB_MAX_RETRIES:2}
-    TCB:
-      display-name: Techcombank
-      enabled: true
-      order: 2
-      base-url: ${HUB_BANK_TCB_BASE_URL:http://localhost:8082}
-      api-key: ${HUB_BANK_TCB_API_KEY:hub_key_tcb_dev}
-      api-secret: ${HUB_BANK_TCB_API_SECRET:tcb_secret_dev_only_do_not_use_in_prod}
-      connect-timeout-ms: ${HUB_BANK_TCB_CONNECT_TIMEOUT_MS:2000}
-      read-timeout-ms: ${HUB_BANK_TCB_READ_TIMEOUT_MS:5000}
-      max-retries: ${HUB_BANK_TCB_MAX_RETRIES:2}
-    ACB:
-      display-name: ACB
-      enabled: true
-      order: 3
-      base-url: ${HUB_BANK_ACB_BASE_URL:http://localhost:8082}
-      api-key: ${HUB_BANK_ACB_API_KEY:hub_key_acb_dev}
-      api-secret: ${HUB_BANK_ACB_API_SECRET:acb_secret_dev_only_do_not_use_in_prod}
-      connect-timeout-ms: ${HUB_BANK_ACB_CONNECT_TIMEOUT_MS:2000}
-      read-timeout-ms: ${HUB_BANK_ACB_READ_TIMEOUT_MS:5000}
-      max-retries: ${HUB_BANK_ACB_MAX_RETRIES:2}
-
-  # Địa chỉ Bank dùng để gọi NGƯỢC về Hub (kênh A, server->server).
-  # KHÁC hub.checkout.base-url: cái đó dành cho TRÌNH DUYỆT của Ana (kênh B).
-  bank-callback:
-    base-url: ${HUB_BANK_CALLBACK_BASE_URL:http://localhost:8080}
-
   hmac:
     # Cửa sổ chống replay. 300s (không phải 5s) để chừa cho LỆCH ĐỒNG HỒ giữa hai hệ thống.
     clock-skew-seconds: ${HUB_HMAC_CLOCK_SKEW_SECONDS:300}

@@ -52,20 +52,6 @@ public class Payment {
     @Column(columnDefinition = "jsonb", updatable = false)
     private String metadata;                  // JSON thô: Hub lưu & trả lại nguyên xi
 
-    // ── Increment 4: ngân hàng Ana chọn ở trang checkout (NULL tới lúc bấm Thanh toán) ──
-    @Column(name = "bank_code")
-    private String bankCode;
-
-    /** Giao dịch bên Bank. Hub coi là định danh ĐỐI SOÁT, không phân tích cấu trúc. */
-    @Column(name = "bank_txn_id")
-    private String bankTxnId;
-
-    @Column(name = "attempt_count", nullable = false)
-    private Integer attemptCount = 0;
-
-    @Column(name = "last_attempt_at")
-    private Instant lastAttemptAt;
-
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
@@ -109,30 +95,6 @@ public class Payment {
         return now.isAfter(checkoutExpiresAt);
     }
 
-    /**
-     * Nhả chỗ đã đặt: IN_PROGRESS -> CREATED.
-     *
-     * ⚠️ CHỈ được gọi khi BankOutcome.NOT_SENT — biết chắc request chưa hề tới bank.
-     * Gọi nhầm ở ca timeout là tự mở đường cho khách trả tiền hai lần: bank đang giữ
-     * một giao dịch, mà Hub lại cho tạo giao dịch thứ hai.
-     *
-     * Xoá bankCode vì lần sau Ana được chọn lại ngân hàng khác. attemptCount GIỮ NGUYÊN —
-     * đó là lịch sử thật, không được xoá.
-     */
-    public void releaseForRetry() {
-        transitionTo(PaymentStatus.CREATED);
-        this.bankCode = null;
-    }
-
-    /**
-     * Bank đã tạo giao dịch. Chỉ ghi định danh đối soát — KHÔNG đổi status:
-     * tạo giao dịch chưa phải là trả tiền, Ana còn phải nhập tài khoản bên Bank.
-     */
-    public void attachBankTransaction(String bankTxnId) {
-        this.bankTxnId = bankTxnId;
-        this.updatedAt = Instant.now();
-    }
-
     public Long getId() { return id; }
     public String getPaymentRef() { return paymentRef; }
     public String getCheckoutToken() { return checkoutToken; }
@@ -145,9 +107,5 @@ public class Payment {
     public String getReturnUrl() { return returnUrl; }
     public String getDescription() { return description; }
     public String getMetadata() { return metadata; }
-    public String getBankCode() { return bankCode; }
-    public String getBankTxnId() { return bankTxnId; }
-    public Integer getAttemptCount() { return attemptCount; }
-    public Instant getLastAttemptAt() { return lastAttemptAt; }
     public Instant getCreatedAt() { return createdAt; }
 }

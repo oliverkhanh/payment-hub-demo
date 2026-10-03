@@ -23,15 +23,6 @@
         button { width:100%; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; }
         .primary { background:var(--brand); color:#fff; border:1px solid var(--brand); margin-bottom:8px; }
         .primary[disabled] { background:#9ab6e8; border-color:#9ab6e8; cursor:not-allowed; }
-        /* danh sách ngân hàng */
-        .banks { display:grid; gap:8px; margin:0 0 16px; }
-        .bank { display:flex; align-items:center; gap:10px; border:1px solid var(--line);
-                border-radius:8px; padding:11px 13px; cursor:pointer; font-size:14.5px; }
-        .bank:has(input:checked) { border-color:var(--brand); background:#eef4fd; }
-        .bank input { margin:0; accent-color:var(--brand); }
-        .bank .code { margin-left:auto; font-size:11.5px; color:var(--muted);
-                      letter-spacing:.04em; }
-        .banks-title { font-size:13px; color:var(--muted); margin:0 0 8px; }
         .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
         .expiry { text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
     </style>
@@ -54,27 +45,10 @@
     </dl>
 
     <!--
-      Increment 4 — danh sách ngân hàng.
-      Danh sách này thuộc về HUB: thêm/tắt một bank chỉ cần đổi config, merchant KHÔNG
-      phải cập nhật gì (spec §2.4). Vì thế bank_code KHÔNG nằm trong request tạo payment
-      của merchant — nó chỉ xuất hiện ở bước này.
+      Increment 4 sẽ thay nút này bằng: chọn ngân hàng -> gọi Bank -> chuyển hướng.
+      Hiện tại Hub chưa nối với ngân hàng nào nên nút bị vô hiệu hoá.
     -->
-    <!-- Thông báo sau khi bấm Thanh toán (flash attribute, PRG pattern) -->
-    <p class="note" th:if="${notice}" th:text="${notice}">Thông báo</p>
-
-    <!-- CSRF: chuỗi /checkout/** BẬT CSRF (có form + cookie); Thymeleaf tự chèn token -->
-    <form th:action="@{'/checkout/' + ${checkoutToken} + '/pay'}" method="post">
-        <p class="banks-title">Chọn ngân hàng</p>
-        <div class="banks">
-            <label class="bank" th:each="bank, it : ${banks}">
-                <input type="radio" name="bank_code" th:value="${bank.code}"
-                       th:checked="${it.first}">
-                <span th:text="${bank.displayName}">Ngân hàng</span>
-                <span class="code" th:text="${bank.code}">VCB</span>
-            </label>
-        </div>
-        <button class="primary" type="submit">Thanh toán</button>
-    </form>
+    <button class="primary" type="button" disabled>Thanh toán (Increment 4)</button>
 
     <!-- POST + CSRF token: chuỗi /checkout/** BẬT CSRF vì có form và cookie -->
     <form th:action="@{'/checkout/' + ${checkoutToken} + '/cancel'}" method="post">

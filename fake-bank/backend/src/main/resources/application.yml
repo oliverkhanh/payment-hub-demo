@@ -16,35 +16,6 @@ spring:
   flyway:
     enabled: true           # locations mặc định: classpath:db/migration
 
-# ─── Increment 4: Bank là bên RA LUẬT ở biên Hub -> Bank ───
-bank:
-  # URL mà TRÌNH DUYỆT của Ana dùng để vào trang thanh toán của bank.
-  # KHÁC địa chỉ Hub gọi server->server (http://fake-bank:8080): cái đó là tên service
-  # trong docker network, trình duyệt của Ana không phân giải được.
-  public-base-url: ${BANK_PUBLIC_BASE_URL:http://localhost:8082}
-
-  hmac:
-    # Cửa sổ chống replay, chừa cho lệch đồng hồ giữa hai hệ thống.
-    clock-skew-seconds: ${BANK_HMAC_CLOCK_SKEW_SECONDS:300}
-
-  display-names:
-    VCB: Vietcombank
-    TCB: Techcombank
-    ACB: ACB
-
-  # Credential BANK CẤP CHO HUB. Mỗi bank một bộ -> lộ bộ này không ảnh hưởng bộ kia.
-  # ⚠️ DEV-ONLY. Production: Secrets Manager. Giá trị phải KHỚP với hub.banks.*.api-*
-  credentials:
-    VCB:
-      api-key: ${BANK_VCB_API_KEY:hub_key_vcb_dev}
-      api-secret: ${BANK_VCB_API_SECRET:vcb_secret_dev_only_do_not_use_in_prod}
-    TCB:
-      api-key: ${BANK_TCB_API_KEY:hub_key_tcb_dev}
-      api-secret: ${BANK_TCB_API_SECRET:tcb_secret_dev_only_do_not_use_in_prod}
-    ACB:
-      api-key: ${BANK_ACB_API_KEY:hub_key_acb_dev}
-      api-secret: ${BANK_ACB_API_SECRET:acb_secret_dev_only_do_not_use_in_prod}
-
 server:
   port: 8080                # cổng trong container; host map ở docker-compose
 

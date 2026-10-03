@@ -112,18 +112,7 @@ Mỗi increment: BA ra spec → engineer thiết kế → review → code tới 
 - [~] Increment 1 — IdP realm machine (client_credentials→JWT): CODE + verify thủ công OK (token/200/403/401/validate cục bộ). Còn thiếu: automated test (Testcontainers)
 - [~] Increment 2 — Merchant catalog→order. **Phase 1 DONE** (verify end-to-end OK): BE `merchant-demo` (products seed, POST /v1/orders với server-side total + snapshot giá + idempotency `UNIQUE(idempotency_key)` + problem+json) + FE React/Vite (`merchant-demo/frontend`, shop "Chợ Phiên"). Trade-off: cart giữ client-side (không persist). Còn Phase 2-5 (gọi Hub, webhook, list đơn, chaos). Còn thiếu: automated test.
 - [~] **Increment 3** — Payment init (Merchant → Hub). **CODE + 29 automated test XANH** (Testcontainers Postgres): `merchants`/`payments`/`idempotency_records` + partial unique `uq_payment_active`, filter HMAC (canonical string 5 dòng, constant-time compare, cửa sổ 5 phút, xoay khoá 2 secret), 3 SecurityFilterChain (`/v1/**` HMAC · `/checkout/**` token · `/internal/**` JWT), idempotency 4 nhánh (201/200 replay/409/422), hosted checkout Thymeleaf, job quét hết hạn. Thiết kế: `docs/specs/02-payment-init-design.md`. Trade-off: `api_secret` lưu plaintext (DEV-ONLY, production = AES+KMS); chưa có rate limit (Inc 9); job chưa có distributed lock (1 instance).
-- [~] **Increment 4** — Hub↔Bank. **ĐANG LÀM.** Xong & verify end-to-end: (1) danh sách bank ở
-  trang checkout từ config `hub.banks`; (2) Adapter `VcbAdapter`/`TcbAdapter`/`AcbAdapter` +
-  port `BankConnector` + `BankConnectorRegistry` (thêm bank = thêm 1 bean); (3) **CAS
-  `CREATED→IN_PROGRESS`** (`PaymentRepository.markInProgress`) + **intent log
-  `payment_attempts`** ghi-commit TRƯỚC khi gọi + **gọi Bank thật bằng HMAC** (credential do
-  Bank cấp, mỗi bank một bộ) + timeout/retry + redirect sang trang bank. fake-bank có 3
-  dialect API (JSON snake / JSON camel / form-urlencoded) xác thực HMAC trên **byte thô**.
-  Trang thanh toán của bank hiện là **STUB** (hiện số tiền + mã GD).
-  **Còn thiếu:** circuit breaker (Resilience4j, spec §2.3c — CLAUDE.md #6 chưa thoả),
-  nhập tài khoản/PIN + trừ tiền ở bank, callback Bank→Hub, verify-on-return, webhook
-  Hub→merchant (Outbox), đồng hồ đếm ngược, job đối soát, automated test cho Inc 4.
-- [ ] Increment 5..6 — Webhook/Outbox → Refund+Ledger
+- [ ] Increment 4..6 — Hub↔Bank → Webhook/Outbox → Refund+Ledger
 - [ ] Increment 7 — Merchant Portal & Human IAM (OIDC + RBAC + multi-tenant)
 - [ ] Increment 8 — Real-time Notification (WebSocket + Redis Pub/Sub + SNS)
 - [ ] Increment 9..13 — Chaos → Recon/Settlement → Observability → AWS → Nâng cao

@@ -18,13 +18,7 @@ public enum PaymentStatus {
     /** Đã tạo lệnh, đang chờ Ana mở link và nhập thông tin thanh toán. */
     CREATED,
 
-    /**
-     * Đã gửi lệnh sang Bank, CHƯA có kết luận. Bao gồm cả ca timeout ("khả nghi").
-     *
-     * Đi ra được CREATED — cạnh LÙI duy nhất của state machine này. Chỉ dùng khi
-     * BankOutcome.NOT_SENT, tức biết chắc request chưa hề tới bank: lúc đó IN_PROGRESS
-     * chưa bao giờ ĐÚNG, ta chỉ đặt chỗ hụt. Xem Payment.releaseForRetry().
-     */
+    /** Đã gửi lệnh sang Bank, CHƯA có kết luận. Bao gồm cả ca timeout ("khả nghi"). */
     IN_PROGRESS,
 
     /** Tiền đã chuyển. Terminal. */
@@ -47,7 +41,7 @@ public enum PaymentStatus {
     public Set<PaymentStatus> allowedNext() {
         return switch (this) {
             case CREATED     -> Set.of(IN_PROGRESS, EXPIRED, CANCELLED);
-            case IN_PROGRESS -> Set.of(CAPTURED, FAILED, CREATED);
+            case IN_PROGRESS -> Set.of(CAPTURED, FAILED);
             default          -> Set.of();     // terminal
         };
     }

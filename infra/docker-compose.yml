@@ -101,15 +101,6 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${HUB_DB_PASSWORD}
       # Resource server lấy JWKS của IdP qua docker network (service name, cổng nội bộ 8080)
       IDP_JWK_SET_URI: http://identity-provider:8080/oauth2/jwks
-      # Increment 4 — Hub gọi Bank SERVER->SERVER: phải là service name trong docker network.
-      # (localhost ở đây là localhost của container Hub, không phải của fake-bank.)
-      HUB_BANK_VCB_BASE_URL: http://fake-bank:8080
-      HUB_BANK_TCB_BASE_URL: http://fake-bank:8080
-      HUB_BANK_ACB_BASE_URL: http://fake-bank:8080
-      # Bank gọi NGƯỢC về Hub (kênh A, server->server) cũng qua docker network.
-      HUB_BANK_CALLBACK_BASE_URL: http://payment-hub:8080
-      # Còn URL cho TRÌNH DUYỆT của Ana (kênh B) phải là địa chỉ máy Ana gõ được.
-      HUB_CHECKOUT_BASE_URL: ${HUB_CHECKOUT_BASE_URL:-http://localhost:8080}
     ports:
       - "8080:8080"
     depends_on:
@@ -123,9 +114,6 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bank_db
       SPRING_DATASOURCE_USERNAME: bank_user
       SPRING_DATASOURCE_PASSWORD: ${BANK_DB_PASSWORD}
-      # redirect_url trả cho Hub sẽ chạy trên TRÌNH DUYỆT của Ana ⇒ địa chỉ host, không
-      # phải tên service. Đây là cặp "internal URL / public URL" kinh điển.
-      BANK_PUBLIC_BASE_URL: ${BANK_PUBLIC_BASE_URL:-http://localhost:8082}
     ports:
       - "8082:8080"
     depends_on:
