@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: merchant-demo
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/merchant_db}
+    username: ${SPRING_DATASOURCE_USERNAME:merchant_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:merchant_pass}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  flyway:
+    enabled: true
+
+# ─── Increment 2 Phase 2: tích hợp Payment Hub ───
+hub:
+  # Trong compose: http://payment-hub:8080 (tên service). Chạy local: http://localhost:8080
+  base-url: ${HUB_BASE_URL:http://localhost:8080}
+  api-key:  ${HUB_API_KEY:mk_dev_demo}
+  # ⚠️ DEV-ONLY. Production: AWS Secrets Manager, KHÔNG để trong file config.
+  # Đối xứng: lộ secret = ký giả được lệnh thanh toán như merchant thật.
+  api-secret: ${HUB_API_SECRET:sk_dev_demo_secret_do_not_use_in_prod}
+  connect-timeout-ms: ${HUB_CONNECT_TIMEOUT_MS:2000}
+  read-timeout-ms:    ${HUB_READ_TIMEOUT_MS:5000}
+  max-retries:        ${HUB_MAX_RETRIES:2}
+  # Hub sẽ đưa khách quay về đây sau khi thanh toán xong/hủy.
+  # Domain phải nằm trong merchants.allowed_return_domains bên Hub (chống open redirect).
+  return-url-base: ${MERCHANT_RETURN_URL_BASE:http://localhost:5173}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  structured:
+    format:
+      console: ecs

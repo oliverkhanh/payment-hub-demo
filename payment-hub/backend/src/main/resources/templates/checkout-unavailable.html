@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Không thể thanh toán — Payment Hub</title>
+    <style>
+        :root { --ink:#1a1a1a; --muted:#6b7280; --line:#e5e7eb; --bg:#f6f7f9; }
+        body { margin:0; padding:24px 16px; background:var(--bg); color:var(--ink);
+               font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+        .card { max-width:420px; margin:0 auto; background:#fff; border:1px solid var(--line);
+                border-radius:12px; padding:28px 24px; text-align:center; }
+        .icon { font-size:34px; margin-bottom:8px; }
+        h1 { font-size:17px; margin:0 0 8px; }
+        p { color:var(--muted); font-size:14px; margin:0 0 20px; }
+        a { display:inline-block; padding:10px 18px; border:1px solid var(--line);
+            border-radius:8px; color:var(--ink); text-decoration:none; font-size:14px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="icon">⏳</div>
+    <h1>Không thể tiếp tục thanh toán</h1>
+    <!-- Lý do đã được service lọc: không tiết lộ token có tồn tại hay không. -->
+    <p th:text="${reason}">Link thanh toán không còn hiệu lực.</p>
+    <a th:if="${returnUrl}" th:href="${returnUrl}">Về cửa hàng</a>
+</div>
+</body>
+</html>

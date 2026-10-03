@@ -1,0 +1,137 @@
+# Increment 0 - cụm local: 3 hạ tầng (Postgres, Redis, Kafka KRaft) + 4 backend.
+# Chạy: cd infra && cp .env.example .env && docker compose up --build
+#
+# Nguyên tắc: app CHỜ hạ tầng "healthy" (depends_on: condition: service_healthy) mới lên,
+# tránh crash vì connect sớm. Config kết nối truyền qua biến môi trường (đọc từ .env).
+
+name: payment-hub
+
+services:
+  # ---------------- Hạ tầng ----------------
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data           # giữ dữ liệu qua restart
+      - ./postgres/init:/docker-entrypoint-initdb.d       # chạy init SQL lần đầu
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  kafka:
+    image: apache/kafka:3.9.0        # KRaft mode: 1 broker kiêm controller, KHÔNG cần Zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ---------------- Backend services ----------------
+  identity-provider:
+    build: ../identity-provider/backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/identity_db
+      SPRING_DATASOURCE_USERNAME: identity_user
+      SPRING_DATASOURCE_PASSWORD: ${IDENTITY_DB_PASSWORD}
+      IDP_KEYSTORE_PASSWORD: ${IDP_KEYSTORE_PASSWORD}
+    ports:
+      - "9000:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+  merchant-demo:
+    build: ../merchant-demo/backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/merchant_db
+      SPRING_DATASOURCE_USERNAME: merchant_user
+      SPRING_DATASOURCE_PASSWORD: ${MERCHANT_DB_PASSWORD}
+      # Increment 2 Phase 2: gọi Hub qua docker network (service name, cổng nội bộ 8080)
+      HUB_BASE_URL: http://payment-hub:8080
+      HUB_API_KEY: ${MERCHANT_HUB_API_KEY:-mk_dev_demo}
+      # DEV-ONLY. Production: Secrets Manager. Đối xứng ⇒ lộ là ký giả được lệnh thanh toán.
+      HUB_API_SECRET: ${MERCHANT_HUB_API_SECRET:-sk_dev_demo_secret_do_not_use_in_prod}
+      # Hub redirect khách về đây; domain phải nằm trong merchants.allowed_return_domains
+      MERCHANT_RETURN_URL_BASE: ${MERCHANT_RETURN_URL_BASE:-http://localhost:5173}
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+  payment-hub:
+    build: ../payment-hub/backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/hub_db
+      SPRING_DATASOURCE_USERNAME: hub_user
+      SPRING_DATASOURCE_PASSWORD: ${HUB_DB_PASSWORD}
+      # Resource server lấy JWKS của IdP qua docker network (service name, cổng nội bộ 8080)
+      IDP_JWK_SET_URI: http://identity-provider:8080/oauth2/jwks
+      # Increment 4 — Hub gọi Bank SERVER->SERVER: phải là service name trong docker network.
+      # (localhost ở đây là localhost của container Hub, không phải của fake-bank.)
+      HUB_BANK_VCB_BASE_URL: http://fake-bank:8080
+      HUB_BANK_TCB_BASE_URL: http://fake-bank:8080
+      HUB_BANK_ACB_BASE_URL: http://fake-bank:8080
+      # Bank gọi NGƯỢC về Hub (kênh A, server->server) cũng qua docker network.
+      HUB_BANK_CALLBACK_BASE_URL: http://payment-hub:8080
+      # Còn URL cho TRÌNH DUYỆT của Ana (kênh B) phải là địa chỉ máy Ana gõ được.
+      HUB_CHECKOUT_BASE_URL: ${HUB_CHECKOUT_BASE_URL:-http://localhost:8080}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+  fake-bank:
+    build: ../fake-bank/backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bank_db
+      SPRING_DATASOURCE_USERNAME: bank_user
+      SPRING_DATASOURCE_PASSWORD: ${BANK_DB_PASSWORD}
+      # redirect_url trả cho Hub sẽ chạy trên TRÌNH DUYỆT của Ana ⇒ địa chỉ host, không
+      # phải tên service. Đây là cặp "internal URL / public URL" kinh điển.
+      BANK_PUBLIC_BASE_URL: ${BANK_PUBLIC_BASE_URL:-http://localhost:8082}
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      kafka: { condition: service_healthy }
+
+volumes:
+  postgres-data:

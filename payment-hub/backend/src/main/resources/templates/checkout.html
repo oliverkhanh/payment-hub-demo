@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Thanh toán — Payment Hub</title>
+    <style>
+        :root { --ink:#1a1a1a; --muted:#6b7280; --line:#e5e7eb; --brand:#1f6feb; --bg:#f6f7f9; }
+        * { box-sizing: border-box; }
+        body { margin:0; padding:24px 16px; background:var(--bg); color:var(--ink);
+               font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; }
+        .card { max-width:420px; margin:0 auto; background:#fff; border:1px solid var(--line);
+                border-radius:12px; padding:24px; }
+        h1 { font-size:18px; margin:0 0 4px; }
+        .sub { color:var(--muted); font-size:13px; margin:0 0 20px; }
+        dl { display:grid; grid-template-columns:auto 1fr; gap:8px 16px; margin:0 0 20px;
+             padding:16px 0; border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+        dt { color:var(--muted); font-size:13px; }
+        dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
+        .amount { font-size:26px; font-weight:600; }
+        .note { background:#fff8e1; border:1px solid #f5d98a; border-radius:8px;
+                padding:12px; font-size:13px; color:#7a5a00; margin:0 0 16px; }
+        button { width:100%; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; }
+        .primary { background:var(--brand); color:#fff; border:1px solid var(--brand); margin-bottom:8px; }
+        .primary[disabled] { background:#9ab6e8; border-color:#9ab6e8; cursor:not-allowed; }
+        /* danh sách ngân hàng */
+        .banks { display:grid; gap:8px; margin:0 0 16px; }
+        .bank { display:flex; align-items:center; gap:10px; border:1px solid var(--line);
+                border-radius:8px; padding:11px 13px; cursor:pointer; font-size:14.5px; }
+        .bank:has(input:checked) { border-color:var(--brand); background:#eef4fd; }
+        .bank input { margin:0; accent-color:var(--brand); }
+        .bank .code { margin-left:auto; font-size:11.5px; color:var(--muted);
+                      letter-spacing:.04em; }
+        .banks-title { font-size:13px; color:var(--muted); margin:0 0 8px; }
+        .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
+        .expiry { text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <h1 th:text="${payment.merchant.name}">Merchant</h1>
+    <p class="sub" th:text="${payment.description} ?: 'Thanh toán đơn hàng'">Mô tả</p>
+
+    <dl>
+        <dt>Đơn hàng</dt>
+        <dd th:text="${payment.orderCode}">ord_0000</dd>
+
+        <dt>Số tiền</dt>
+        <dd class="amount">
+            <!-- amount là minor unit (số nguyên). Chia 100 CHỈ ở biên hiển thị (CLAUDE.md #4). -->
+            <span th:text="${#numbers.formatInteger(payment.amount, 1, 'COMMA')}">0</span>
+            <span th:text="${payment.currency}">VND</span>
+        </dd>
+    </dl>
+
+    <!--
+      Increment 4 — danh sách ngân hàng.
+      Danh sách này thuộc về HUB: thêm/tắt một bank chỉ cần đổi config, merchant KHÔNG
+      phải cập nhật gì (spec §2.4). Vì thế bank_code KHÔNG nằm trong request tạo payment
+      của merchant — nó chỉ xuất hiện ở bước này.
+    -->
+    <!-- Thông báo sau khi bấm Thanh toán (flash attribute, PRG pattern) -->
+    <p class="note" th:if="${notice}" th:text="${notice}">Thông báo</p>
+
+    <!-- CSRF: chuỗi /checkout/** BẬT CSRF (có form + cookie); Thymeleaf tự chèn token -->
+    <form th:action="@{'/checkout/' + ${checkoutToken} + '/pay'}" method="post">
+        <p class="banks-title">Chọn ngân hàng</p>
+        <div class="banks">
+            <label class="bank" th:each="bank, it : ${banks}">
+                <input type="radio" name="bank_code" th:value="${bank.code}"
+                       th:checked="${it.first}">
+                <span th:text="${bank.displayName}">Ngân hàng</span>
+                <span class="code" th:text="${bank.code}">VCB</span>
+            </label>
+        </div>
+        <button class="primary" type="submit">Thanh toán</button>
+    </form>
+
+    <!-- POST + CSRF token: chuỗi /checkout/** BẬT CSRF vì có form và cookie -->
+    <form th:action="@{'/checkout/' + ${checkoutToken} + '/cancel'}" method="post">
+        <button class="ghost" type="submit">Quay lại cửa hàng</button>
+    </form>
+
+    <p class="expiry">
+        Link hết hạn lúc
+        <span th:text="${#temporals.format(payment.checkoutExpiresAt, 'HH:mm:ss dd/MM/yyyy')}">--</span>
+    </p>
+</div>
+</body>
+</html>

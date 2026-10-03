@@ -1,0 +1,32 @@
+# Secrets / env
+.env
+*.env.local
+
+# Keystores / keys (dev keystore sinh cục bộ, không commit)
+*.p12
+*.jks
+
+# Java / Maven
+target/
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+*.class
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+
+# Claude Code — settings cục bộ của từng máy (permissions), không chia sẻ
+.claude/settings.local.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
