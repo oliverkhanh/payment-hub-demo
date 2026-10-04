@@ -2,12 +2,14 @@ package com.paymenthub.bank;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
-/**
- * Fake Bank - giả lập ngân hàng/acquirer.
- * Increment 0: chỉ là skeleton (chạy được + health + migrate DB). Chưa có nghiệp vụ.
- */
 @SpringBootApplication
+@ConfigurationPropertiesScan
+@EnableScheduling
+@EnableAsync
 public class FakeBankApplication {
     public static void main(String[] args) {
         SpringApplication.run(FakeBankApplication.class, args);

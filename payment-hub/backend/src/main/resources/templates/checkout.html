@@ -23,6 +23,18 @@
         button { width:100%; padding:12px; border-radius:8px; font-size:15px; cursor:pointer; }
         .primary { background:var(--brand); color:#fff; border:1px solid var(--brand); margin-bottom:8px; }
         .primary[disabled] { background:#9ab6e8; border-color:#9ab6e8; cursor:not-allowed; }
+        /* danh sách ngân hàng */
+        .banks-title { font-size:13px; color:var(--muted); margin:0 0 8px; }
+        .banks { display:grid; gap:8px; margin:0 0 16px; }
+        .bank { display:flex; align-items:center; gap:10px; border:1px solid var(--line);
+                border-radius:8px; padding:11px 13px; cursor:pointer; font-size:14.5px; }
+        .bank:has(input:checked) { border-color:var(--brand); background:#eef4fd; }
+        .bank input { margin:0; accent-color:var(--brand); }
+        .bank .code { margin-left:auto; font-size:11.5px; color:var(--muted); letter-spacing:.04em; }
+        .empty { font-size:13px; color:var(--muted); background:#fff8e1;
+                 border:1px solid #f5d98a; border-radius:8px; padding:11px 13px; margin:0 0 16px; }
+        .msg { background:#fff8e1; border:1px solid #f5d98a; border-radius:8px;
+               padding:11px 13px; font-size:13px; color:#7a5a00; margin:0 0 16px; }
         .ghost { background:#fff; color:var(--ink); border:1px solid var(--line); }
         .expiry { text-align:center; color:var(--muted); font-size:12px; margin-top:14px; }
     </style>
@@ -44,11 +56,23 @@
         </dd>
     </dl>
 
-    <!--
-      Increment 4 sẽ thay nút này bằng: chọn ngân hàng -> gọi Bank -> chuyển hướng.
-      Hiện tại Hub chưa nối với ngân hàng nào nên nút bị vô hiệu hoá.
-    -->
-    <button class="primary" type="button" disabled>Thanh toán (Increment 4)</button>
+    <p class="msg" th:if="${notice}" th:text="${notice}">Thông báo</p>
+
+    <form th:action="@{'/checkout/' + ${checkoutToken} + '/pay'}" method="post">
+        <p class="banks-title">Chọn ngân hàng</p>
+        <div class="banks">
+            <label class="bank" th:each="bank, it : ${banks}">
+                <input type="radio" name="bank_code" th:value="${bank.code}"
+                       th:checked="${selectedBankCode != null ? bank.code == selectedBankCode : it.first}">
+                <span th:text="${bank.displayName}">Ngân hàng</span>
+                <span class="code" th:text="${bank.code}">VCB</span>
+            </label>
+        </div>
+        <p class="empty" th:if="${#lists.isEmpty(banks)}">
+            Hiện không có ngân hàng nào khả dụng. Vui lòng thử lại sau.
+        </p>
+        <button class="primary" type="submit" th:disabled="${#lists.isEmpty(banks)}">Thanh toán</button>
+    </form>
 
     <!-- POST + CSRF token: chuỗi /checkout/** BẬT CSRF vì có form và cookie -->
     <form th:action="@{'/checkout/' + ${checkoutToken} + '/cancel'}" method="post">

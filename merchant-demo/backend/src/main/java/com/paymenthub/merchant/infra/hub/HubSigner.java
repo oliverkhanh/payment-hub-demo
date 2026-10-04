@@ -8,19 +8,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
 
-/**
- * Ký request gửi SANG Hub — phía merchant là BÊN GỬI.
- *
- * Chuỗi ký phải GIỐNG HỆT bên Hub, tới từng ký tự (xem docs/notes/hmac-request-signing.md §5):
- *   METHOD \n PATH \n TIMESTAMP \n IDEMPOTENCY_KEY \n SHA256_HEX(BODY)
- *
- * Lưu ý: code này TRÙNG với HmacSigner bên payment-hub — CỐ Ý. Hai service khác nhau,
- * khác repo/khác đội trong đời thật; Hub phát hành SDK cho merchant chứ không chia sẻ class.
- * Trùng lặp ở đây phản ánh đúng ranh giới hệ thống, không phải chỗ để "tái sử dụng".
- */
 @Component
 public class HubSigner {
-
     private static final String HMAC_ALGO = "HmacSHA256";
     private static final String EMPTY_BODY_SHA256 =
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
@@ -31,7 +20,7 @@ public class HubSigner {
                 method.toUpperCase(),
                 path,
                 timestamp == null ? "" : timestamp,
-                idempotencyKey == null ? "" : idempotencyKey,   // rỗng nhưng DÒNG VẪN CÒN
+                idempotencyKey == null ? "" : idempotencyKey,
                 sha256Hex(body));
     }
 

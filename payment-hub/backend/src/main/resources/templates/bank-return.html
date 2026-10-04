@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kết quả thanh toán — Payment Hub</title>
+    <style>
+        :root { --ink:#1a1a1a; --muted:#6b7280; --line:#e5e7eb; --brand:#1f6feb;
+                --ok:#1d6b3e; --pending:#7a5a00; --fail:#b3261e; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+               background:#f4f5f7; color:var(--ink); display:flex; justify-content:center;
+               padding:40px 16px; }
+        .card { background:#fff; border-radius:14px; max-width:440px; width:100%; padding:28px;
+                box-shadow:0 1px 3px rgba(0,0,0,.08); text-align:center; }
+        .mark { width:52px; height:52px; border-radius:50%; margin:0 auto 16px;
+                font-size:27px; line-height:52px; }
+        .mark.ok      { background:#e8f6ed; color:var(--ok); }
+        .mark.pending { background:#fff8e1; color:var(--pending); }
+        .mark.fail    { background:#fdecea; color:var(--fail); }
+        h1 { font-size:19px; margin:0 0 10px; }
+        h1.ok { color:var(--ok); } h1.pending { color:var(--pending); } h1.fail { color:var(--fail); }
+        .detail { font-size:13.5px; color:var(--muted); margin:0; line-height:1.6; }
+        dl { margin:22px 0 0; padding-top:18px; border-top:1px solid var(--line);
+             display:grid; grid-template-columns:auto 1fr; gap:10px 14px; font-size:13px;
+             text-align:left; }
+        dt { color:var(--muted); }
+        dd { margin:0; text-align:right; word-break:break-all; }
+        .amount { font-weight:700; }
+        .actions { margin:24px 0 0; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+        a, button { display:inline-block; padding:11px 22px; border-radius:8px; font-size:14px;
+                    font-weight:600; text-decoration:none; cursor:pointer; font-family:inherit; }
+        a.primary { background:var(--brand); color:#fff; border:1px solid var(--brand); }
+        a.ghost   { background:#fff; color:var(--ink); border:1px solid var(--line); }
+        .live { margin:16px 0 0; font-size:12px; color:var(--muted); }
+        .dot { display:inline-block; width:7px; height:7px; border-radius:50%;
+               background:var(--pending); margin-right:5px; animation:blink 1.2s infinite; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="mark" th:classappend="${tone}"
+         th:text="${tone == 'ok'} ? '✓' : (${tone == 'pending'} ? '⋯' : '!')">✓</div>
+
+    <h1 th:classappend="${tone}" th:text="${headline}">Kết quả</h1>
+    <p class="detail" th:text="${detail}"></p>
+
+    <dl>
+        <dt>Đơn hàng</dt>
+        <dd th:text="${payment.orderCode}">—</dd>
+        <dt>Số tiền</dt>
+        <dd class="amount">
+            <span th:text="${#numbers.formatInteger(payment.amount, 1, 'COMMA')}">0</span>
+            <span th:text="${payment.currency}">VND</span>
+        </dd>
+        <dt>Mã giao dịch</dt>
+        <dd th:text="${payment.paymentRef}">—</dd>
+        <dt>Trạng thái</dt>
+        <dd th:text="${payment.status}">—</dd>
+    </dl>
+
+    <p class="live" th:if="${tone == 'pending'}">
+        <span class="dot"></span>Đang theo dõi kết quả theo thời gian thực…
+    </p>
+
+    <div class="actions">
+        <a class="ghost" th:href="@{'/checkout/' + ${checkoutToken} + '/bank-return'}"
+           href="#">Kiểm tra lại</a>
+        <a class="primary" th:href="${returnUrl}" th:if="${returnUrl}"
+           href="#">Quay lại cửa hàng</a>
+    </div>
+</div>
+
+<script th:if="${tone == 'pending'}" th:inline="javascript">
+    const checkoutToken = /*[[${checkoutToken}]]*/ '';
+    const seenStatus = /*[[${payment.status.name()}]]*/ '';
+
+    async function waitForChange() {
+        try {
+            const response = await fetch(
+                `/checkout/${checkoutToken}/status?seen=${encodeURIComponent(seenStatus)}`);
+
+            if (response.ok) {
+                const view = await response.json();
+                if (view.status !== seenStatus) {
+                    window.location.reload();
+                    return;
+                }
+            }
+        } catch (networkError) {
+            console.warn('Long poll gián đoạn, thử lại:', networkError);
+        }
+        setTimeout(waitForChange, 1000);
+    }
+
+    waitForChange();
+</script>
+</body>
+</html>

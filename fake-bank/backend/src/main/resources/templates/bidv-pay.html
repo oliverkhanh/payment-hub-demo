@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BIDV — Thanh toán</title>
+    <style>
+        :root { --brand:#005baa; --ink:#1a1a1a; --muted:#6b7280; --line:#e5e7eb; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:system-ui,-apple-system,'Segoe UI',sans-serif;
+               background:#f4f5f7; color:var(--ink); display:flex; justify-content:center;
+               padding:32px 16px; }
+        .card { background:#fff; border-radius:14px; max-width:440px; width:100%;
+                box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:hidden; }
+        header { background:var(--brand); color:#fff; padding:18px 22px; }
+        header .bank { font-size:19px; font-weight:700; letter-spacing:.3px; }
+        header .sub { font-size:12px; opacity:.85; margin-top:2px; }
+        .body { padding:22px; }
+        .amount { text-align:center; padding:4px 0 18px; border-bottom:1px solid var(--line); }
+        .amount .num { font-size:30px; font-weight:700; color:var(--brand); }
+        .amount .cur { font-size:14px; color:var(--muted); margin-left:4px; }
+        dl { margin:16px 0 0; display:grid; grid-template-columns:auto 1fr; gap:9px 14px;
+             font-size:13px; }
+        dt { color:var(--muted); }
+        dd { margin:0; text-align:right; word-break:break-all; }
+        .ref { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+        form { margin:20px 0 0; border-top:1px solid var(--line); padding-top:18px; }
+        form h2 { font-size:14px; margin:0 0 14px; font-weight:600; }
+        label { display:block; font-size:12.5px; color:var(--muted); margin:0 0 5px; }
+        .field { margin:0 0 14px; }
+        input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px;
+                font-size:14px; font-family:inherit; }
+        input:focus { outline:none; border-color:var(--brand); }
+        button { width:100%; padding:12px; border:0; border-radius:8px; background:var(--brand);
+                 color:#fff; font-size:14.5px; font-weight:600; cursor:pointer; font-family:inherit; }
+        .hint { font-size:11.5px; color:var(--muted); margin:10px 0 0; text-align:center; }
+        .notice { margin:0 0 16px; padding:11px 13px; background:#fff8e1; border:1px solid #f5d98a;
+                  border-radius:8px; font-size:12.5px; color:#7a5a00; }
+        .notice-ok { margin:0 0 16px; padding:11px 13px; background:#e8f6ed; border:1px solid #9fd8b5;
+                     border-radius:8px; font-size:12.5px; color:#1d6b3e; }
+        form.cancel { border-top:none; margin-top:10px; padding-top:0; }
+        button.link { width:100%; background:none; border:none; color:#64748b;
+                      text-decoration:underline; cursor:pointer; padding:8px; font-size:13px; }
+        button.link:hover { color:#0f172a; }
+    </style>
+</head>
+<body>
+<div class="card">
+    <header>
+        <div class="bank">BIDV</div>
+        <div class="sub">BIDV SmartBanking — Xác thực giao dịch</div>
+    </header>
+    <div class="body">
+        <p class="notice" th:if="${notice}" th:text="${notice}"></p>
+        <p class="notice-ok" th:if="${noticeOk}" th:text="${noticeOk}"></p>
+        <div class="amount">
+            <span class="num" th:text="${#numbers.formatInteger(txn.amount, 1, 'COMMA')}">0</span>
+            <span class="cur" th:text="${txn.currency}">VND</span>
+        </div>
+        <dl>
+            <dt>Đơn vị thụ hưởng</dt>
+            <dd th:text="${txn.merchantName}">—</dd>
+            <dt>Mã giao dịch</dt>
+            <dd class="ref" th:text="${txn.bankTxnRef}">—</dd>
+        </dl>
+        <form method="post" th:action="@{'/bidv/order/' + ${txn.bankTxnRef}}">
+            <h2>Nhập thông tin tài khoản</h2>
+            <div class="field">
+                <label for="accountNumber">Số tài khoản</label>
+                <input type="text" id="accountNumber" name="accountNumber" required
+                       autocomplete="off" th:value="${enteredAccount}" inputmode="numeric">
+            </div>
+            <div class="field">
+                <label for="pin">Mã PIN (6 chữ số)</label>
+                <input type="password" id="pin" name="pin" required
+                       autocomplete="new-password" inputmode="numeric" maxlength="6" minlength="6">
+            </div>
+
+            <button type="submit">Xác nhận thanh toán</button>
+            <p class="hint">Giao dịch được bảo vệ bởi BIDV</p>
+        </form>
+
+    <form method="post" th:action="@{'/bidv/order/' + ${txn.bankTxnRef} + '/cancel'}" class="cancel">
+        <button type="submit" class="link">Huỷ thanh toán</button>
+    </form>
+    </div>
+</div>
+</body>
+</html>

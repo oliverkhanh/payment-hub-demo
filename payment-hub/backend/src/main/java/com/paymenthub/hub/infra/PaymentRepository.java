@@ -4,6 +4,7 @@ import com.paymenthub.hub.domain.Payment;
 import com.paymenthub.hub.domain.PaymentStatus;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,24 +13,13 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PaymentRepository extends JpaRepository<Payment, Long> {
-
     Optional<Payment> findByPaymentRef(String paymentRef);
 
-    /**
-     * @EntityGraph: nạp luôn merchant. Trang checkout đọc payment.merchant.name SAU KHI
-     * transaction đã đóng (open-in-view=false) -> LazyInitializationException nếu để LAZY.
-     * Đúng bug đã gặp ở Increment 2 với order.items.
-     */
     @EntityGraph(attributePaths = "merchant")
     Optional<Payment> findByCheckoutToken(String checkoutToken);
 
-    /** Merchant chỉ được thấy payment của chính mình (tenant isolation). */
     Optional<Payment> findByPaymentRefAndMerchantId(String paymentRef, Long merchantId);
 
-    /**
-     * Payment "đang sống" của một đơn — dùng để dịch DataIntegrityViolation của
-     * partial index uq_payment_active thành lỗi nghiệp vụ có nghĩa.
-     */
     @Query("""
            select p from Payment p
            where p.merchant.id = :merchantId
@@ -40,7 +30,56 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                               @Param("orderCode") String orderCode,
                               @Param("statuses") List<PaymentStatus> statuses);
 
-    /** Job quét hết hạn. Giới hạn số dòng để một lượt quét không chạy quá lâu. */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+           update Payment p
+              set p.status    = com.paymenthub.hub.domain.PaymentStatus.IN_PROGRESS,
+                  p.updatedAt = :now
+            where p.id     = :paymentId
+              and p.status = com.paymenthub.hub.domain.PaymentStatus.CREATED
+           """)
+    int markInProgress(@Param("paymentId") Long paymentId, @Param("now") Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+           update Payment p
+              set p.status    = com.paymenthub.hub.domain.PaymentStatus.CREATED,
+                  p.updatedAt = :now
+            where p.id     = :paymentId
+              and p.status = com.paymenthub.hub.domain.PaymentStatus.IN_PROGRESS
+           """)
+    int releaseClaim(@Param("paymentId") Long paymentId, @Param("now") Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+           update Payment p
+              set p.status    = com.paymenthub.hub.domain.PaymentStatus.FAILED,
+                  p.updatedAt = :now
+            where p.id     = :paymentId
+              and p.status = com.paymenthub.hub.domain.PaymentStatus.IN_PROGRESS
+           """)
+    int markFailed(@Param("paymentId") Long paymentId, @Param("now") Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+           update Payment p
+              set p.status    = com.paymenthub.hub.domain.PaymentStatus.CAPTURED,
+                  p.updatedAt = :now
+            where p.id     = :paymentId
+              and p.status = com.paymenthub.hub.domain.PaymentStatus.IN_PROGRESS
+           """)
+    int markCaptured(@Param("paymentId") Long paymentId, @Param("now") Instant now);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+           update Payment p
+              set p.status    = com.paymenthub.hub.domain.PaymentStatus.CANCELLED,
+                  p.updatedAt = :now
+            where p.id     = :paymentId
+              and p.status = com.paymenthub.hub.domain.PaymentStatus.IN_PROGRESS
+           """)
+    int markCancelled(@Param("paymentId") Long paymentId, @Param("now") Instant now);
+
     @Query("""
            select p from Payment p
            where p.status = com.paymenthub.hub.domain.PaymentStatus.CREATED

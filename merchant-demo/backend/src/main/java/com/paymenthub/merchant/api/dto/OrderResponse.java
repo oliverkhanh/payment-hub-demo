@@ -13,7 +13,6 @@ public record OrderResponse(
         String hubPaymentRef,
         Instant createdAt,
         List<Item> items) {
-
     public record Item(
             Long productId,
             String productName,

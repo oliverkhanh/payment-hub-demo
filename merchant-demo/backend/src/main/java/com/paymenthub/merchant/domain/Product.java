@@ -3,11 +3,9 @@ package com.paymenthub.merchant.domain;
 import jakarta.persistence.*;
 import java.time.Instant;
 
-/** Sản phẩm trong catalog (seed cố định). Giá = số nguyên minor unit + currency. */
 @Entity
 @Table(name = "products")
 public class Product {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,9 +14,9 @@ public class Product {
     private String description;
 
     @Column(name = "price_amount")
-    private long priceAmount;      // minor unit, KHÔNG float
+    private long priceAmount;
 
-    private String currency;       // ISO 4217
+    private String currency;
 
     @Column(name = "image_emoji")
     private String imageEmoji;

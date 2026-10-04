@@ -6,15 +6,38 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Unit test cho state machine — thuần domain, không cần Spring (CLAUDE.md §5). */
 class PaymentStatusTest {
-
     @Test
     @DisplayName("CREATED chỉ đi được tới IN_PROGRESS / EXPIRED / CANCELLED")
     void createdTransitions() {
         assertThat(PaymentStatus.CREATED.allowedNext()).containsExactlyInAnyOrder(
                 PaymentStatus.IN_PROGRESS, PaymentStatus.EXPIRED, PaymentStatus.CANCELLED);
         assertThat(PaymentStatus.CREATED.canTransitionTo(PaymentStatus.CAPTURED)).isFalse();
+    }
+
+    @Test
+    @DisplayName("⭐ IN_PROGRESS quay LẠI được CREATED — nhả claim khi chắc chắn chưa gửi bank")
+    void inProgressCanReleaseBackToCreated() {
+        assertThat(PaymentStatus.IN_PROGRESS.allowedNext()).containsExactlyInAnyOrder(
+                PaymentStatus.CAPTURED, PaymentStatus.FAILED, PaymentStatus.CREATED,
+                PaymentStatus.CANCELLED);
+
+        Payment payment = samplePayment();
+        payment.transitionTo(PaymentStatus.IN_PROGRESS);
+        payment.transitionTo(PaymentStatus.CREATED);
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CREATED);
+    }
+
+    @Test
+    @DisplayName("IN_PROGRESS đi được tới CANCELLED — khách bấm Huỷ trên trang bank")
+    void inProgressCanBeCancelledFromBankPage() {
+        Payment payment = samplePayment();
+        payment.transitionTo(PaymentStatus.IN_PROGRESS);
+        payment.transitionTo(PaymentStatus.CANCELLED);
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.CANCELLED);
+        assertThat(PaymentStatus.CANCELLED.isTerminal()).isTrue();
     }
 
     @Test
@@ -30,7 +53,6 @@ class PaymentStatusTest {
     @Test
     @DisplayName("isActive() phải TRÙNG điều kiện của partial index uq_payment_active")
     void activeStatesMatchPartialIndex() {
-        // V2__payments.sql: WHERE status IN ('CREATED', 'IN_PROGRESS')
         for (PaymentStatus status : PaymentStatus.values()) {
             boolean expected = status == PaymentStatus.CREATED || status == PaymentStatus.IN_PROGRESS;
             assertThat(status.isActive()).as("isActive cho %s", status).isEqualTo(expected);

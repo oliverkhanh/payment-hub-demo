@@ -8,15 +8,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Xác thực HMAC — mỗi test là MỘT tình huống tấn công đã phân tích trong
- * docs/notes/hmac-request-signing.md §3.
- *
- * Kẻ tấn công KHÔNG có secret ⇒ nó chỉ sửa được phần NGOÀI niêm phong rồi gửi lại.
- * Mỗi test chứng minh một thành phần thực sự nằm TRONG niêm phong.
- */
 class HmacAuthenticationTest extends AbstractIntegrationTest {
-
     @Test
     @DisplayName("Signature đúng -> 201")
     void validSignatureIsAccepted() {
@@ -39,7 +31,7 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).contains("\"error_code\":\"invalid_signature\"");
-        // Không được nói "thiếu header nào" / "api_key có tồn tại không"
+
         assertThat(response.getBody()).doesNotContain("X-Signature").doesNotContain(API_KEY);
     }
 
@@ -64,7 +56,7 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
         String signedBody = createBody("ord_tamper", 1000);
         HttpHeaders headers = signedHeaders("POST", "/v1/payments", key, signedBody);
 
-        String tamperedBody = createBody("ord_tamper", 999_999_999);   // đổi amount
+        String tamperedBody = createBody("ord_tamper", 999_999_999);
 
         var response = rest.exchange(url("/v1/payments"), HttpMethod.POST,
                 new HttpEntity<>(tamperedBody, headers), String.class);
@@ -77,7 +69,7 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
     void tamperedPathIsRejected() {
         String key = UUID.randomUUID().toString();
         String body = createBody("ord_path", 1000);
-        // Ký cho /v1/payments rồi gửi sang đường dẫn khác
+
         HttpHeaders headers = signedHeaders("POST", "/v1/payments", key, body);
 
         var response = rest.exchange(url("/v1/payments/pay_x/something"), HttpMethod.POST,
@@ -92,7 +84,7 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
         String signedKey = UUID.randomUUID().toString();
         String body = createBody("ord_idem_tamper", 1000);
         HttpHeaders headers = signedHeaders("POST", "/v1/payments", signedKey, body);
-        headers.set("Idempotency-Key", UUID.randomUUID().toString());   // đổi sau khi ký
+        headers.set("Idempotency-Key", UUID.randomUUID().toString());
 
         var response = rest.exchange(url("/v1/payments"), HttpMethod.POST,
                 new HttpEntity<>(body, headers), String.class);
@@ -108,7 +100,7 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
         String oneHourAgo = String.valueOf(System.currentTimeMillis() / 1000 - 3600);
 
         HttpHeaders headers = signedHeaders("POST", "/v1/payments", key, body,
-                oneHourAgo, SECRET, API_KEY);   // ký ĐÚNG, chỉ là ký từ 1 giờ trước
+                oneHourAgo, SECRET, API_KEY);
 
         var response = rest.exchange(url("/v1/payments"), HttpMethod.POST,
                 new HttpEntity<>(body, headers), String.class);
@@ -128,7 +120,6 @@ class HmacAuthenticationTest extends AbstractIntegrationTest {
         var response = rest.exchange(url("/v1/payments"), HttpMethod.POST,
                 new HttpEntity<>(body, headers), String.class);
 
-        // 404 sẽ là tiết lộ "api_key nào có thật" -> cho phép dò danh sách merchant
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
         assertThat(response.getBody()).contains("\"error_code\":\"invalid_signature\"");
     }

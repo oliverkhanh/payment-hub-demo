@@ -6,12 +6,8 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-/**
- * Dịch lỗi ra application/problem+json (RFC 7807), kèm mã lỗi nội bộ ổn định (error_code).
- */
 @RestControllerAdvice
 public class ApiExceptionHandler {
-
     @ExceptionHandler(BusinessException.class)
     public ProblemDetail handleBusiness(BusinessException ex) {
         ProblemDetail pd = ProblemDetail.forStatusAndDetail(ex.getStatus(), ex.getMessage());

@@ -8,9 +8,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Contract: mã lỗi, status code, định dạng problem+json, tenant isolation, trang checkout. */
 class PaymentApiContractTest extends AbstractIntegrationTest {
-
     @Test
     @DisplayName("Thiếu Idempotency-Key -> 400 (thiếu thành phần GIAO THỨC, không phải giá trị sai)")
     void missingIdempotencyKeyIsBadRequest() {
@@ -75,12 +73,12 @@ class PaymentApiContractTest extends AbstractIntegrationTest {
         assertThat(body)
                 .contains("\"payment_ref\":\"pay_")
                 .contains("\"status\":\"CREATED\"")
-                .contains("\"order_code\":\"ord_shape\"")     // echo -> merchant phát hiện lỗi minor unit
+                .contains("\"order_code\":\"ord_shape\"")
                 .contains("\"amount\":355000")
                 .contains("\"currency\":\"VND\"")
                 .contains("\"checkout_url\":\"http")
                 .contains("\"expires_at\":");
-        // checkout_token đã nằm TRONG checkout_url; không trả riêng. id nội bộ không bao giờ lộ.
+
         assertThat(body).doesNotContain("\"checkout_token\"").doesNotContain("\"id\":");
     }
 
@@ -121,7 +119,7 @@ class PaymentApiContractTest extends AbstractIntegrationTest {
     @DisplayName("Chuỗi /v1/** không áp cho /checkout/** — trang checkout KHÔNG cần HMAC")
     void checkoutChainDoesNotRequireHmac() {
         var created = postPayment(UUID.randomUUID().toString(), createBody("ord_chain", 1000));
-        // Không gửi bất kỳ header xác thực nào
+
         var page = rest.exchange(localCheckoutUrl(created.getBody()), HttpMethod.GET,
                 new HttpEntity<>(new HttpHeaders()), String.class);
 

@@ -10,7 +10,6 @@ import java.time.Instant;
 import java.util.Optional;
 
 public interface IdempotencyRecordRepository extends JpaRepository<IdempotencyRecord, Long> {
-
     Optional<IdempotencyRecord> findByMerchantIdAndIdempotencyKey(Long merchantId, String key);
 
     @Modifying

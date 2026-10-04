@@ -8,7 +8,6 @@ import java.util.List;
 
 @Service
 public class CatalogService {
-
     private final ProductRepository products;
 
     public CatalogService(ProductRepository products) {

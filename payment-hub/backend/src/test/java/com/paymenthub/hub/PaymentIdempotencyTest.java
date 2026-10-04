@@ -15,15 +15,7 @@ import java.util.concurrent.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Hai lớp chống trùng (docs/notes/inc3-data-model.md §3).
- *
- * ⭐ Bài học Increment 2: TEST TUẦN TỰ XANH KHÔNG CHỨNG MINH ĐƯỢC GÌ VỀ RACE.
- * Test tuần tự chỉ chạm nhánh "khoá đã COMPLETED"; phải bắn đồng thời mới vào
- * nhánh IN_PROGRESS và mới kiểm được hành vi của UNIQUE ở DB.
- */
 class PaymentIdempotencyTest extends AbstractIntegrationTest {
-
     @Autowired PaymentRepository payments;
     @Autowired PaymentExpiryJob expiryJob;
 
@@ -39,7 +31,7 @@ class PaymentIdempotencyTest extends AbstractIntegrationTest {
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(second.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(second.getHeaders().getFirst("Idempotent-Replay")).isEqualTo("true");
-        // NGUYÊN VĂN, không dựng lại từ DB
+
         assertThat(second.getBody()).isEqualTo(first.getBody());
 
         assertThat(countPayments("ord_replay")).isEqualTo(1);
@@ -51,7 +43,7 @@ class PaymentIdempotencyTest extends AbstractIntegrationTest {
         String key = UUID.randomUUID().toString();
 
         var first = postPayment(key, createBody("ord_reuse", 355000));
-        var second = postPayment(key, createBody("ord_reuse", 1000));   // amount khác
+        var second = postPayment(key, createBody("ord_reuse", 1000));
 
         assertThat(first.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         assertThat(second.getStatusCode()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
@@ -133,7 +125,6 @@ class PaymentIdempotencyTest extends AbstractIntegrationTest {
         var created = postPayment(UUID.randomUUID().toString(), createBody("ord_job", 1000));
         assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 
-        // Đẩy hạn về quá khứ rồi chạy job
         payments.findAll().stream()
                 .filter(p -> p.getOrderCode().equals("ord_job"))
                 .forEach(p -> forceExpiry(p.getId()));
@@ -144,9 +135,6 @@ class PaymentIdempotencyTest extends AbstractIntegrationTest {
                 .allMatch(p -> p.getStatus() == PaymentStatus.EXPIRED)).isTrue();
     }
 
-    // ── helpers ────────────────────────────────────────────────────────────
-
-    /** Bắn N request CÙNG LÚC: dùng CountDownLatch để mọi thread khởi hành đồng thời. */
     private List<Integer> fireConcurrently(int threads,
                                            Callable<ResponseEntity<String>> call) throws Exception {
         var pool = Executors.newFixedThreadPool(threads);

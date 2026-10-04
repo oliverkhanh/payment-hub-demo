@@ -28,9 +28,103 @@ spring:
 
 # ─── Increment 3 ───
 hub:
+  # ─────────────────────────────────────────────────────────────────────────
+  # Increment 4 — danh sách ngân hàng. THUỘC VỀ HUB, merchant không biết.
+  # Thêm/tắt một bank chỉ sửa ở đây; merchant KHÔNG phải deploy lại gì.
+  #
+  # Phân biệt HAI chuyện khác nhau:
+  #   enabled: false  -> bank KHÔNG hiện ra cho khách chọn        (bảo trì có kế hoạch)
+  #   base-url chết   -> bank vẫn hiện ra, nhưng gọi sang là lỗi  (sự cố ngoài ý muốn)
+  # ─────────────────────────────────────────────────────────────────────────
+  banks:
+    VCB:
+      display-name: Vietcombank
+      enabled: true
+      order: 1                                   # đầu danh sách = được chọn sẵn
+      api-key: ${HUB_BANK_VCB_API_KEY:hub_key_vcb_dev}
+      api-secret: ${HUB_BANK_VCB_API_SECRET:vcb_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_VCB_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-ms: ${HUB_BANK_VCB_READ_TIMEOUT_MS:5000}
+      max-retries: ${HUB_BANK_VCB_MAX_RETRIES:2}
+      base-url: ${HUB_BANK_VCB_BASE_URL:http://localhost:8082}
+    TCB:
+      display-name: Techcombank
+      enabled: true
+      order: 2
+      api-key: ${HUB_BANK_TCB_API_KEY:hub_key_tcb_dev}
+      api-secret: ${HUB_BANK_TCB_API_SECRET:tcb_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_TCB_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-ms: ${HUB_BANK_TCB_READ_TIMEOUT_MS:5000}
+      max-retries: ${HUB_BANK_TCB_MAX_RETRIES:2}
+      base-url: ${HUB_BANK_TCB_BASE_URL:http://localhost:8082}
+    ACB:
+      display-name: ACB
+      enabled: true
+      order: 3
+      api-key: ${HUB_BANK_ACB_API_KEY:hub_key_acb_dev}
+      api-secret: ${HUB_BANK_ACB_API_SECRET:acb_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_ACB_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-ms: ${HUB_BANK_ACB_READ_TIMEOUT_MS:5000}
+      max-retries: ${HUB_BANK_ACB_MAX_RETRIES:2}
+      base-url: ${HUB_BANK_ACB_BASE_URL:http://localhost:8082}
+
+    # Bank CỐ Ý HỎNG: cổng 9 không có ai listen -> kernel trả RST ngay (~8ms),
+    # JDK ném ConnectException -> classify() ra NOT_SENT (chắc chắn chưa gửi byte nào).
+    # KHÔNG phải timeout: muốn demo timeout thì trỏ vào IP bị drop gói, ví dụ 10.255.255.1.
+    SCB:
+      display-name: Sacombank (demo lỗi)
+      enabled: true
+      order: 4
+      api-key: ${HUB_BANK_SCB_API_KEY:hub_key_scb_dev}
+      api-secret: ${HUB_BANK_SCB_API_SECRET:scb_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_SCB_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-ms: ${HUB_BANK_SCB_READ_TIMEOUT_MS:5000}
+      max-retries: ${HUB_BANK_SCB_MAX_RETRIES:2}
+      base-url: ${HUB_BANK_SCB_BASE_URL:http://localhost:9}
+
+    # Bank CỐ Ý CHẬM: fake-bank nhận request rồi NGỦ lâu hơn read-timeout.
+    # Khác SCB hoàn toàn: SCB bị refuse (chưa gửi byte nào -> NOT_SENT),
+    # BIDV đã nhận request rồi mới mất liên lạc -> INDETERMINATE, KHÔNG được nhả claim.
+    # read-timeout PHẢI lớn hơn connect-timeout, nếu không timeout request che mất
+    # timeout connect và mọi lỗi đều quy về một loại.
+    BIDV:
+      display-name: BIDV (demo timeout)
+      enabled: true
+      order: 5
+      api-key: ${HUB_BANK_BIDV_API_KEY:hub_key_bidv_dev}
+      api-secret: ${HUB_BANK_BIDV_API_SECRET:bidv_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_BIDV_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${HUB_BANK_BIDV_READ_TIMEOUT_MS:2500}
+      max-retries: ${HUB_BANK_BIDV_MAX_RETRIES:1}
+      base-url: ${HUB_BANK_BIDV_BASE_URL:http://localhost:8082}
+
+    # Bank ĐANG BẢO TRÌ: không hiện ra danh sách. Khách không chọn được,
+    # và kể cả tự gửi bank_code=MB lên cũng bị từ chối.
+    MB:
+      display-name: MB Bank
+      enabled: false
+      order: 5
+      api-key: ${HUB_BANK_MB_API_KEY:hub_key_mb_dev}
+      api-secret: ${HUB_BANK_MB_API_SECRET:mb_secret_dev_only_do_not_use_in_prod}
+      connect-timeout-ms: ${HUB_BANK_MB_CONNECT_TIMEOUT_MS:2000}
+      read-timeout-ms: ${HUB_BANK_MB_READ_TIMEOUT_MS:5000}
+      max-retries: ${HUB_BANK_MB_MAX_RETRIES:2}
+      base-url: ${HUB_BANK_MB_BASE_URL:http://localhost:8082}
+
   hmac:
     # Cửa sổ chống replay. 300s (không phải 5s) để chừa cho LỆCH ĐỒNG HỒ giữa hai hệ thống.
     clock-skew-seconds: ${HUB_HMAC_CLOCK_SKEW_SECONDS:300}
+  bank-callback:
+    base-url: ${HUB_BANK_CALLBACK_BASE_URL:http://localhost:8080}
+    # Khoá HMAC cho chiều VÀO (bank -> hub). KHÁC hub.banks.<CODE>.api-secret (chiều ra):
+    # rò một chiều thì chiều kia vẫn an toàn. Cùng biến nguồn với BANK_<CODE>_WEBHOOK_SECRET.
+    secrets:
+      VCB:  ${HUB_BANK_VCB_WEBHOOK_SECRET:vcb_webhook_secret_dev_only_do_not_use_in_prod}
+      TCB:  ${HUB_BANK_TCB_WEBHOOK_SECRET:tcb_webhook_secret_dev_only_do_not_use_in_prod}
+      ACB:  ${HUB_BANK_ACB_WEBHOOK_SECRET:acb_webhook_secret_dev_only_do_not_use_in_prod}
+      SCB:  ${HUB_BANK_SCB_WEBHOOK_SECRET:scb_webhook_secret_dev_only_do_not_use_in_prod}
+      BIDV: ${HUB_BANK_BIDV_WEBHOOK_SECRET:bidv_webhook_secret_dev_only_do_not_use_in_prod}
+      MB:   ${HUB_BANK_MB_WEBHOOK_SECRET:mb_webhook_secret_dev_only_do_not_use_in_prod}
   checkout:
     # Dùng để dựng checkout_url trả về merchant. Merchant coi URL này là OPAQUE.
     base-url: ${HUB_CHECKOUT_BASE_URL:http://localhost:8080}
@@ -57,3 +151,19 @@ logging:
   structured:
     format:
       console: ecs
+
+# Circuit breaker cho chiều Hub -> Bank. Một instance cho MỖI bank_code (tạo lúc chạy),
+# tất cả kế thừa config "default" dưới đây.
+# Mở mạch = thừa nhận "bank này đang hỏng", trả NOT_SENT ngay thay vì bắt khách chờ timeout.
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: ${HUB_CB_WINDOW_SIZE:10}
+        # Chưa đủ số lần gọi thì KHÔNG đánh giá — tránh mở mạch vì một cú xui đầu tiên.
+        minimum-number-of-calls: ${HUB_CB_MIN_CALLS:5}
+        failure-rate-threshold: ${HUB_CB_FAILURE_RATE:50}
+        wait-duration-in-open-state: ${HUB_CB_OPEN_WAIT:30s}
+        permitted-number-of-calls-in-half-open-state: 2
+        automatic-transition-from-open-to-half-open-enabled: true

@@ -8,17 +8,7 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 
-/**
- * getInputStream() là stream MỘT CHIỀU, đọc được MỘT LẦN — nó là ống nước từ socket,
- * không phải mảng byte nằm sẵn. Nên nó vỡ theo CẢ HAI chiều:
- *   - filter đọc trước  -> controller thấy stream rỗng (HttpMessageNotReadableException)
- *   - Jackson đọc trước -> filter không còn gì để băm
- *
- * Wrapper này đọc HẾT vào byte[] ngay trong constructor, rồi phát lại cho ai cũng được.
- * (Khác ContentCachingRequestWrapper của Spring: cái đó chỉ cache SAU KHI có ai đọc.)
- */
 public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
-
     private final byte[] body;
 
     public CachedBodyHttpServletRequest(HttpServletRequest request) throws IOException {
@@ -36,7 +26,7 @@ public class CachedBodyHttpServletRequest extends HttpServletRequestWrapper {
         return new ServletInputStream() {
             @Override public boolean isFinished()  { return buffer.available() == 0; }
             @Override public boolean isReady()     { return true; }
-            @Override public void setReadListener(ReadListener listener) { /* blocking IO */ }
+            @Override public void setReadListener(ReadListener listener) {  }
             @Override public int read()            { return buffer.read(); }
         };
     }

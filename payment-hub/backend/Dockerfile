@@ -2,6 +2,10 @@
 FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
+# lombok.config PHẢI vào image: thiếu nó thì lombok.copyableAnnotations không chạy,
+# @Value trên field không được chép sang tham số constructor -> app chết lúc khởi động.
+# (Test ở máy vẫn xanh vì ở máy có file này — đúng kiểu lỗi "chạy máy tôi thì được".)
+COPY lombok.config .
 RUN mvn -q -B dependency:go-offline
 COPY src ./src
 RUN mvn -q -B clean package -DskipTests

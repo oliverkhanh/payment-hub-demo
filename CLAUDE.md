@@ -70,6 +70,20 @@ shipping, admin phức tạp, dashboard. Đừng tự ý thêm.
 
 ## 5. Quy ước code
 
+> ⭐ **Trước khi viết hoặc sửa BẤT KỲ code Java nào: gọi skill `paymenthub-coding`**
+> (`.claude/skills/paymenthub-coding/SKILL.md`) và tuân theo nó — kể cả khi chỉ sửa một hàm.
+>
+> Phần bất di bất dịch, phải nhớ kể cả khi không mở skill:
+> - **Clear > Short · Readable > Clever · Explicit > Implicit · Easy to debug > Compact**
+> - Không gom nhiều logic vào một expression. Không nested ternary, stream/Optional chain dài, magic number.
+> - **Business rule phải nhìn thấy ở tầng ngoài**, không giấu trong abstraction.
+> - **Không comment trong code Java.** Phần "tại sao" đưa vào `docs/notes/` hoặc câu trả lời review.
+> - Không tạo `Factory`/`Strategy`/`Helper`/`Manager`/`Handler` khi chưa có lý do thực tế.
+> - Không swallow exception, không `catch (Exception)` vô cớ.
+> - **Không tự ý đổi architecture / schema / API contract / refactor phần không liên quan** — nêu vấn đề và chờ quyết.
+> - Nhiều cách làm hợp lý ⇒ trình bày Option A/B/C kèm trade-off, để người dùng chọn.
+> - Sau khi implement: nói rõ **file nào đổi, làm thế nào, vì sao**, rồi chờ review.
+
 - **Package:** `com.paymenthub.<service>.<layer>` — layer: `api` (controller/dto), `domain` (entity, state machine, service), `infra` (repo, kafka, external client), `config`.
 - **Kiến trúc trong service:** Hexagonal (ports & adapters) nhẹ. Domain không phụ thuộc framework nếu tránh được.
 - **Naming:** REST resource số nhiều (`/v1/payments`). Event: `<Aggregate>.<PastTenseVerb>` (`Payment.Authorized`). Kafka topic: `paymenthub.<domain>.<event>` (`paymenthub.payment.authorized`).
@@ -95,7 +109,7 @@ shipping, admin phức tạp, dashboard. Đừng tự ý thêm.
   → Ngoại lệ: tài liệu nền đã soạn sẵn (docs 00, 01) giữ nguyên làm "sách giáo khoa";
   từ docs 02 trở đi ưu tiên để người dùng tự thiết kế trước rồi AI review.
 - **Trước khi code một feature:** đọc flow tương ứng trong `docs/02-business-flows.md` và state machine trong `docs/03-system-design.md`. Nếu tài liệu chưa có, hỏi hoặc bổ sung tài liệu trước.
-- **Quy ước code chi tiết** (naming, package, error format, mẫu test) sẽ nằm ở **skill `paymenthub-conventions`** (tạo ở Sprint 0, khi có code mẫu thật), không nhồi vào file này.
+- **Quy ước code chi tiết** nằm ở **skill `paymenthub-coding`** (`.claude/skills/paymenthub-coding/SKILL.md`) — xem §5, bắt buộc gọi trước khi code.
 - **Luôn giải thích trade-off** khi có nhiều phương án, đừng chỉ chọn im lặng.
 - **Không tự ý mở rộng scope.** Nếu thấy thiếu thành phần quan trọng của gateway thật → đề xuất và giải thích, để người dùng quyết, đừng tự thêm.
 - **Ưu tiên viết được test.** Feature không test được coi như chưa xong.
@@ -112,7 +126,17 @@ Mỗi increment: BA ra spec → engineer thiết kế → review → code tới 
 - [~] Increment 1 — IdP realm machine (client_credentials→JWT): CODE + verify thủ công OK (token/200/403/401/validate cục bộ). Còn thiếu: automated test (Testcontainers)
 - [~] Increment 2 — Merchant catalog→order. **Phase 1 DONE** (verify end-to-end OK): BE `merchant-demo` (products seed, POST /v1/orders với server-side total + snapshot giá + idempotency `UNIQUE(idempotency_key)` + problem+json) + FE React/Vite (`merchant-demo/frontend`, shop "Chợ Phiên"). Trade-off: cart giữ client-side (không persist). Còn Phase 2-5 (gọi Hub, webhook, list đơn, chaos). Còn thiếu: automated test.
 - [~] **Increment 3** — Payment init (Merchant → Hub). **CODE + 29 automated test XANH** (Testcontainers Postgres): `merchants`/`payments`/`idempotency_records` + partial unique `uq_payment_active`, filter HMAC (canonical string 5 dòng, constant-time compare, cửa sổ 5 phút, xoay khoá 2 secret), 3 SecurityFilterChain (`/v1/**` HMAC · `/checkout/**` token · `/internal/**` JWT), idempotency 4 nhánh (201/200 replay/409/422), hosted checkout Thymeleaf, job quét hết hạn. Thiết kế: `docs/specs/02-payment-init-design.md`. Trade-off: `api_secret` lưu plaintext (DEV-ONLY, production = AES+KMS); chưa có rate limit (Inc 9); job chưa có distributed lock (1 instance).
-- [ ] Increment 4..6 — Hub↔Bank → Webhook/Outbox → Refund+Ledger
+- [x] **Increment 4** — Hub↔Bank authorize & capture. **CODE + 152 test XANH** (113 hub + 39 fake-bank,
+  Testcontainers Postgres cả hai). Chiều đi: chọn bank từ properties, CAS `CREATED→IN_PROGRESS` +
+  `payment_attempts` trước khi gọi, 5 dialect bank riêng, HMAC khoá do bank cấp, timeout+retry+
+  **circuit breaker (Resilience4j)**, ba nhánh kết quả (NOT_SENT / NO_ANSWER / ANSWERED).
+  Chiều về: outbox ở fake-bank + relay (claim `FOR UPDATE SKIP LOCKED` + lease, 5 lần thử,
+  backoff luỹ thừa + jitter, 4xx bỏ cuộc ngay), webhook ký HMAC **khoá riêng chiều về**,
+  Hub verify → tra `payment_attempts` → **đối chiếu amount+currency** → CAS `IN_PROGRESS→CAPTURED`.
+  UI bank: thành công / thất bại (hết tiền, khoá, lỗi 5xx) / **huỷ**. Callback trùng trả 2xx
+  không xử lý lại. Trade-off: `401/403` đang xếp là lỗi vĩnh viễn (xoay khoá lệch nhịp = mất
+  event, phải bơm lại tay); chưa có job đối soát cho attempt `isInDoubt()` (để Inc 10).
+- [ ] Increment 5..6 — Webhook Hub→Merchant/Outbox → Refund+Ledger
 - [ ] Increment 7 — Merchant Portal & Human IAM (OIDC + RBAC + multi-tenant)
 - [ ] Increment 8 — Real-time Notification (WebSocket + Redis Pub/Sub + SNS)
 - [ ] Increment 9..13 — Chaos → Recon/Settlement → Observability → AWS → Nâng cao

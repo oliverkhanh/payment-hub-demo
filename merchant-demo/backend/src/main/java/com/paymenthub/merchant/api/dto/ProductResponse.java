@@ -9,7 +9,6 @@ public record ProductResponse(
         long priceAmount,
         String currency,
         String imageEmoji) {
-
     public static ProductResponse from(Product p) {
         return new ProductResponse(
                 p.getId(), p.getName(), p.getDescription(),

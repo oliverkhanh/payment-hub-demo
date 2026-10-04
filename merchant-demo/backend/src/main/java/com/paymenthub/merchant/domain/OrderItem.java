@@ -2,15 +2,9 @@ package com.paymenthub.merchant.domain;
 
 import jakarta.persistence.*;
 
-/**
- * Dòng hàng trong Order — SNAPSHOT tại thời điểm đặt.
- * Copy tên + giá đơn vị + currency + số lượng, KHÔNG live-link tới Product,
- * để giá/tên đổi về sau không ảnh hưởng đơn đã tạo (BR-M2 chốt giá).
- */
 @Entity
 @Table(name = "order_items")
 public class OrderItem {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,10 +17,10 @@ public class OrderItem {
     private Long productId;
 
     @Column(name = "product_name")
-    private String productName;         // snapshot
+    private String productName;
 
     @Column(name = "unit_price_amount")
-    private long unitPriceAmount;       // snapshot giá tại lúc đặt
+    private long unitPriceAmount;
 
     private String currency;
     private int quantity;

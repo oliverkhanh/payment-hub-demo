@@ -16,6 +16,72 @@ spring:
   flyway:
     enabled: true           # locations mặc định: classpath:db/migration
 
+bank:
+  outbox:
+    # Lưới an toàn: relay đã được đánh thức ngay sau commit, job này chỉ dọn dòng lỡ.
+    sweep-interval-ms: ${BANK_OUTBOX_SWEEP_INTERVAL_MS:10000}
+
+  # Tài khoản đánh dấu is_slow sẽ ngủ bấy nhiêu trước khi trả lời.
+  slow-account-delay-ms: ${BANK_SLOW_ACCOUNT_DELAY_MS:5000}
+  hmac-clock-skew-seconds: ${BANK_HMAC_CLOCK_SKEW_SECONDS:300}
+
+  api-clients:
+    VCB:
+      key:    ${BANK_VCB_KEY:hub_key_vcb_dev}
+      secret: ${BANK_VCB_SECRET:vcb_secret_dev_only_do_not_use_in_prod}
+    TCB:
+      key:    ${BANK_TCB_KEY:hub_key_tcb_dev}
+      secret: ${BANK_TCB_SECRET:tcb_secret_dev_only_do_not_use_in_prod}
+    ACB:
+      key:    ${BANK_ACB_KEY:hub_key_acb_dev}
+      secret: ${BANK_ACB_SECRET:acb_secret_dev_only_do_not_use_in_prod}
+    SCB:
+      key:    ${BANK_SCB_KEY:hub_key_scb_dev}
+      secret: ${BANK_SCB_SECRET:scb_secret_dev_only_do_not_use_in_prod}
+    BIDV:
+      key:    ${BANK_BIDV_KEY:hub_key_bidv_dev}
+      secret: ${BANK_BIDV_SECRET:bidv_secret_dev_only_do_not_use_in_prod}
+    MB:
+      key:    ${BANK_MB_KEY:hub_key_mb_dev}
+      secret: ${BANK_MB_SECRET:mb_secret_dev_only_do_not_use_in_prod}
+
+  webhook:
+    # 5 lần thử, mỗi LƯỢT QUÉT một lần — không phải vòng lặp 5 lần trong một lượt.
+    max-attempts: ${BANK_WEBHOOK_MAX_ATTEMPTS:5}
+    batch-size: ${BANK_WEBHOOK_BATCH_SIZE:20}
+    # Giữ chỗ trong lúc request còn bay: claim xong là đẩy next_attempt_at lên trước,
+    # để lượt quét khác không bốc trùng sau khi transaction claim đã commit (khoá tan).
+    # PHẢI lớn hơn read-timeout-ms, nếu không dòng tới hạn lại giữa đường.
+    lease-ms: ${BANK_WEBHOOK_LEASE_MS:30000}
+    # Backoff: 10s -> 20s -> 40s -> 60s (chặn trên). Base bằng nhịp job quét, vì job 10s
+    # sẽ nuốt mọi khoảng chờ nhỏ hơn 10s — đặt base nhỏ hơn thì backoff thành vô hình.
+    backoff-base-ms: ${BANK_WEBHOOK_BACKOFF_BASE_MS:10000}
+    backoff-max-ms: ${BANK_WEBHOOK_BACKOFF_MAX_MS:60000}
+    # Jitter để nhiều dòng hỏng cùng lúc không cùng tỉnh dậy một khoảnh khắc.
+    backoff-jitter-ms: ${BANK_WEBHOOK_BACKOFF_JITTER_MS:1000}
+    # read PHẢI > connect: read là deadline của CẢ request, không phải "thời gian đọc response".
+    connect-timeout-ms: ${BANK_WEBHOOK_CONNECT_TIMEOUT_MS:1000}
+    read-timeout-ms: ${BANK_WEBHOOK_READ_TIMEOUT_MS:3000}
+
+  # Khoá HMAC cho chiều NGƯỢC LẠI: bank -> hub (webhook).
+  # Cố ý KHÁC bank.api-clients.<CODE>.secret (chiều hub -> bank): rò một chiều thì
+  # chiều kia vẫn an toàn, và xoay được từng chiều độc lập.
+  webhook-secrets:
+    VCB:  ${BANK_VCB_WEBHOOK_SECRET:vcb_webhook_secret_dev_only_do_not_use_in_prod}
+    TCB:  ${BANK_TCB_WEBHOOK_SECRET:tcb_webhook_secret_dev_only_do_not_use_in_prod}
+    ACB:  ${BANK_ACB_WEBHOOK_SECRET:acb_webhook_secret_dev_only_do_not_use_in_prod}
+    SCB:  ${BANK_SCB_WEBHOOK_SECRET:scb_webhook_secret_dev_only_do_not_use_in_prod}
+    BIDV: ${BANK_BIDV_WEBHOOK_SECRET:bidv_webhook_secret_dev_only_do_not_use_in_prod}
+    MB:   ${BANK_MB_WEBHOOK_SECRET:mb_webhook_secret_dev_only_do_not_use_in_prod}
+
+  bidv:
+    # Nhận request rồi NGỦ lâu hơn read-timeout của Hub (2500ms) -> Hub timeout.
+    # Đặt 0 để BIDV trả lời ngay và xem được trang thanh toán.
+    response-delay-ms: ${BANK_BIDV_RESPONSE_DELAY_MS:5000}
+  # URL mà TRÌNH DUYỆT dùng, không phải URL mà Hub dùng để gọi API.
+  # Hub gọi qua docker network (fake-bank:8080); khách bấm link thì chạy trên host.
+  public-base-url: ${BANK_PUBLIC_BASE_URL:http://localhost:8082}
+
 server:
   port: 8080                # cổng trong container; host map ở docker-compose
 

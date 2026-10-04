@@ -101,8 +101,37 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${HUB_DB_PASSWORD}
       # Resource server lấy JWKS của IdP qua docker network (service name, cổng nội bộ 8080)
       IDP_JWK_SET_URI: http://identity-provider:8080/oauth2/jwks
+      # URL bank gọi NGƯỢC về Hub (server→server, trong docker network).
+      # KHÔNG dùng localhost: trong container fake-bank thì localhost là chính nó.
+      HUB_BANK_CALLBACK_BASE_URL: ${HUB_BANK_CALLBACK_BASE_URL:-http://payment-hub:8080}
+      # Chiều VÀO (bank -> hub): cùng biến nguồn với BANK_<CODE>_WEBHOOK_SECRET của fake-bank.
+      HUB_BANK_VCB_WEBHOOK_SECRET: ${HUB_BANK_VCB_WEBHOOK_SECRET:-vcb_webhook_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_TCB_WEBHOOK_SECRET: ${HUB_BANK_TCB_WEBHOOK_SECRET:-tcb_webhook_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_ACB_WEBHOOK_SECRET: ${HUB_BANK_ACB_WEBHOOK_SECRET:-acb_webhook_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_SCB_WEBHOOK_SECRET: ${HUB_BANK_SCB_WEBHOOK_SECRET:-scb_webhook_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_BIDV_WEBHOOK_SECRET: ${HUB_BANK_BIDV_WEBHOOK_SECRET:-bidv_webhook_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_MB_WEBHOOK_SECRET: ${HUB_BANK_MB_WEBHOOK_SECRET:-mb_webhook_secret_dev_only_do_not_use_in_prod}
+      # hub.checkout.base-url GIỮ localhost:8080 — URL này do TRÌNH DUYỆT khách mở.
+      JAVA_TOOL_OPTIONS: ${HUB_JAVA_TOOL_OPTIONS:--agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005}
+      HUB_BANK_VCB_BASE_URL: ${HUB_BANK_VCB_BASE_URL:-http://fake-bank:8080}
+      HUB_BANK_TCB_BASE_URL: ${HUB_BANK_TCB_BASE_URL:-http://fake-bank:8080}
+      HUB_BANK_ACB_BASE_URL: ${HUB_BANK_ACB_BASE_URL:-http://fake-bank:8080}
+      # SCB CỐ Ý CHẾT: cổng 9 không ai listen -> kernel trả RST ngay (~8ms).
+      # Dùng để demo nhánh 'gọi bank thất bại' mà không phải tắt cả fake-bank.
+      HUB_BANK_SCB_BASE_URL: ${HUB_BANK_SCB_BASE_URL:-http://localhost:9}
+      HUB_BANK_BIDV_BASE_URL: ${HUB_BANK_BIDV_BASE_URL:-http://fake-bank:8080}
+      HUB_BANK_MB_BASE_URL: ${HUB_BANK_MB_BASE_URL:-http://fake-bank:8080}
+      # DEV-ONLY. Đối xứng: PHẢI khớp bank.api-clients.<CODE>.secret bên fake-bank,
+      # đổi một bên là HMAC vỡ. Production: Secrets Manager, không nằm ở đây.
+      HUB_BANK_VCB_API_SECRET: ${HUB_BANK_VCB_API_SECRET:-vcb_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_TCB_API_SECRET: ${HUB_BANK_TCB_API_SECRET:-tcb_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_ACB_API_SECRET: ${HUB_BANK_ACB_API_SECRET:-acb_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_SCB_API_SECRET: ${HUB_BANK_SCB_API_SECRET:-scb_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_BIDV_API_SECRET: ${HUB_BANK_BIDV_API_SECRET:-bidv_secret_dev_only_do_not_use_in_prod}
+      HUB_BANK_MB_API_SECRET: ${HUB_BANK_MB_API_SECRET:-mb_secret_dev_only_do_not_use_in_prod}
     ports:
       - "8080:8080"
+      - "127.0.0.1:5005:5005"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -111,11 +140,35 @@ services:
   fake-bank:
     build: ../fake-bank/backend
     environment:
+      BANK_PUBLIC_BASE_URL: ${BANK_PUBLIC_BASE_URL:-http://localhost:8082}
+      # BIDV cố ý trả lời chậm hơn read-timeout của Hub (2500ms). Đặt 0 để nó trả lời ngay.
+      BANK_BIDV_RESPONSE_DELAY_MS: ${BANK_BIDV_RESPONSE_DELAY_MS:-5000}
+      # Nửa còn lại của cặp khoá HMAC — phải khớp HUB_BANK_<CODE>_API_SECRET ở trên.
+      BANK_VCB_SECRET: ${HUB_BANK_VCB_API_SECRET:-vcb_secret_dev_only_do_not_use_in_prod}
+      BANK_TCB_SECRET: ${HUB_BANK_TCB_API_SECRET:-tcb_secret_dev_only_do_not_use_in_prod}
+      BANK_ACB_SECRET: ${HUB_BANK_ACB_API_SECRET:-acb_secret_dev_only_do_not_use_in_prod}
+      BANK_SCB_SECRET: ${HUB_BANK_SCB_API_SECRET:-scb_secret_dev_only_do_not_use_in_prod}
+      BANK_BIDV_SECRET: ${HUB_BANK_BIDV_API_SECRET:-bidv_secret_dev_only_do_not_use_in_prod}
+      BANK_MB_SECRET: ${HUB_BANK_MB_API_SECRET:-mb_secret_dev_only_do_not_use_in_prod}
+      # Chiều NGƯỢC LẠI (bank -> hub webhook): bộ khoá RIÊNG, khác 6 dòng trên.
+      # Hub sẽ đọc cùng biến nguồn này ở lát sau -> xoay một biến là khớp cả hai phía.
+      BANK_VCB_WEBHOOK_SECRET: ${HUB_BANK_VCB_WEBHOOK_SECRET:-vcb_webhook_secret_dev_only_do_not_use_in_prod}
+      BANK_TCB_WEBHOOK_SECRET: ${HUB_BANK_TCB_WEBHOOK_SECRET:-tcb_webhook_secret_dev_only_do_not_use_in_prod}
+      BANK_ACB_WEBHOOK_SECRET: ${HUB_BANK_ACB_WEBHOOK_SECRET:-acb_webhook_secret_dev_only_do_not_use_in_prod}
+      BANK_SCB_WEBHOOK_SECRET: ${HUB_BANK_SCB_WEBHOOK_SECRET:-scb_webhook_secret_dev_only_do_not_use_in_prod}
+      BANK_BIDV_WEBHOOK_SECRET: ${HUB_BANK_BIDV_WEBHOOK_SECRET:-bidv_webhook_secret_dev_only_do_not_use_in_prod}
+      BANK_MB_WEBHOOK_SECRET: ${HUB_BANK_MB_WEBHOOK_SECRET:-mb_webhook_secret_dev_only_do_not_use_in_prod}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/bank_db
       SPRING_DATASOURCE_USERNAME: bank_user
       SPRING_DATASOURCE_PASSWORD: ${BANK_DB_PASSWORD}
+      # Remote debug (JDWP). suspend=n -> app chạy ngay, không chờ IDE attach.
+      # Đổi sang suspend=y nếu cần debug cả lúc khởi động.
+      JAVA_TOOL_OPTIONS: ${BANK_JAVA_TOOL_OPTIONS:--agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005}
     ports:
       - "8082:8080"
+      # JDWP KHÔNG có xác thực — ai nối được là chạy được code tuỳ ý trong JVM.
+      # Bind 127.0.0.1 để chỉ máy này nối được. TUYỆT ĐỐI không mở ra ngoài.
+      - "127.0.0.1:5006:5005"
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }

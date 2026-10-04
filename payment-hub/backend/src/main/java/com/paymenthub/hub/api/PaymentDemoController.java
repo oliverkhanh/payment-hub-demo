@@ -7,18 +7,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
-/**
- * Endpoint demo cho Increment 1 (resource server): chứng minh JWT + scope hoạt động.
- * Trả dữ liệu STUB.
- *
- * Increment 3 đã dời nó từ /v1/payments sang /internal/payments, vì /v1/** giờ thuộc biên
- * MERCHANT (xác thực HMAC), còn đây là biên NỘI BỘ (xác thực JWT từ IdP realm "machine").
- * Hai biên khác cơ chế ⇒ phải khác prefix, xem ResourceServerConfig.
- */
 @RestController
 @RequestMapping("/internal/payments")
 public class PaymentDemoController {
-
     @GetMapping("/{id}")
     public Map<String, Object> getPayment(@PathVariable String id) {
         return Map.of(

@@ -5,6 +5,7 @@
 > Tiếp nối: [02-payment-init-spec.md](02-payment-init-spec.md) ·
 > [02-payment-init-design.md](02-payment-init-design.md)
 > Kiến thức nền bắt buộc đọc: [bank-call-timeout-and-retry.md](../notes/bank-call-timeout-and-retry.md)
+> **Khi bắt tay code: dùng [03-bank-capture-checklist.md](03-bank-capture-checklist.md)** (bản rút gọn để tick).
 
 ---
 

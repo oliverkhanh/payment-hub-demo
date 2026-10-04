@@ -32,16 +32,8 @@ import java.security.KeyStore;
 import java.time.Duration;
 import java.util.UUID;
 
-/**
- * Cấu hình Authorization Server (Increment 1 - realm machine).
- * - Cấp JWT qua grant client_credentials
- * - Client registry lưu JDBC (bảng oauth2_registered_client, tạo bởi Flyway)
- * - Ký JWT bằng RSA (RS256) từ keystore PKCS12 (persist)
- */
 @Configuration
 public class AuthorizationServerConfig {
-
-    /** Filter chain 1: các endpoint của Authorization Server (/oauth2/token, /oauth2/jwks...). */
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
@@ -49,7 +41,6 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
-    /** Filter chain 2: mọi request còn lại — actuator để public cho healthcheck. */
     @Bean
     public SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
         http.authorizeHttpRequests(auth -> auth
@@ -58,19 +49,16 @@ public class AuthorizationServerConfig {
         return http.build();
     }
 
-    /** Client registry: JDBC. Bảng oauth2_registered_client do Flyway tạo (V2). */
     @Bean
     public RegisteredClientRepository registeredClientRepository(JdbcTemplate jdbcTemplate) {
         return new JdbcRegisteredClientRepository(jdbcTemplate);
     }
 
-    /** Encoder cho client secret — lưu dạng hash BCrypt, không plaintext. */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    /** Signing key RS256: load từ keystore PKCS12 (persist → JWKS ổn định qua restart). */
     @Bean
     public JWKSource<SecurityContext> jwkSource(
             @Value("${idp.jwk.keystore-location}") String keystoreLocation,
@@ -82,7 +70,7 @@ public class AuthorizationServerConfig {
             keyStore.load(is, keystorePassword.toCharArray());
         }
         RSAKey rsaKey = RSAKey.load(keyStore, keyAlias, keystorePassword.toCharArray());
-        // Gắn keyID = alias → JWKS công bố kèm kid (phục vụ key rotation về sau)
+
         RSAKey withKid = new RSAKey.Builder(rsaKey).keyID(keyAlias).build();
         return new ImmutableJWKSet<>(new JWKSet(withKid));
     }
@@ -97,11 +85,6 @@ public class AuthorizationServerConfig {
         return AuthorizationServerSettings.builder().build();
     }
 
-    /**
-     * Seed 2 client demo (internal service client) — idempotent.
-     * Lưu ý thiết kế: bảng do Flyway tạo, nhưng DỮ LIỆU client seed bằng code
-     * (repo.save) vì cột client_settings/token_settings là JSON, viết tay SQL rất dễ sai.
-     */
     @Bean
     public ApplicationRunner seedClients(RegisteredClientRepository repo, PasswordEncoder encoder) {
         return args -> {
@@ -122,7 +105,7 @@ public class AuthorizationServerConfig {
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
                 .scope(scope)
                 .tokenSettings(TokenSettings.builder()
-                        .accessTokenTimeToLive(Duration.ofMinutes(5))   // TTL ngắn
+                        .accessTokenTimeToLive(Duration.ofMinutes(5))
                         .build())
                 .build();
         repo.save(client);

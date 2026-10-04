@@ -12,15 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-/**
- * Dựng & lưu Order trong MỘT transaction riêng (bean tách khỏi OrderService).
- * Tách bean để {@code @Transactional} chạy qua proxy: khi saveAndFlush đụng
- * UNIQUE(idempotency_key), CHÍNH tx này rollback gọn, exception nổ ra NGOÀI —
- * OrderService (không nằm trong tx này) đọc lại đơn bằng tx sạch.
- */
 @Service
 public class OrderCreator {
-
     private final ProductRepository products;
     private final OrderRepository orders;
 
@@ -31,7 +24,6 @@ public class OrderCreator {
 
     @Transactional
     public Order create(String idempotencyKey, CreateOrderRequest req) {
-        // Gộp số lượng theo productId (client có thể gửi trùng dòng).
         Map<Long, Integer> qtyByProduct = new LinkedHashMap<>();
         for (CreateOrderRequest.Line l : req.items()) {
             if (l.productId() == null) {
@@ -46,7 +38,6 @@ public class OrderCreator {
             qtyByProduct.merge(l.productId(), qty, Integer::sum);
         }
 
-        // Tra giá từ DB (server-side), chốt giá vào OrderItem (snapshot).
         String currency = null;
         var pending = new ArrayList<OrderItem>();
         for (var e : qtyByProduct.entrySet()) {
@@ -65,9 +56,8 @@ public class OrderCreator {
         }
 
         Order order = new Order(generateOrderCode(), idempotencyKey, currency);
-        pending.forEach(order::addItem);   // addItem cộng dồn total (server-side)
+        pending.forEach(order::addItem);
 
-        // saveAndFlush: ép INSERT chạm DB NGAY → vi phạm UNIQUE nổ trong tx này (rollback gọn).
         return orders.saveAndFlush(order);
     }
 

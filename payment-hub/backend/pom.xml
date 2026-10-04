@@ -21,9 +21,22 @@
         <java.version>21</java.version>
         <!-- Ghi đè bản Spring Boot quản lý (1.20.x): Docker 29 từ chối API version cũ (HTTP 400). -->
         <testcontainers.version>1.21.3</testcontainers.version>
+        <!-- Spring Boot BOM không quản Resilience4j -> phải chốt version tay. -->
+        <resilience4j.version>2.2.0</resilience4j.version>
     </properties>
 
     <dependencies>
+        <!--
+          Lombok: bỏ boilerplate (getter, constructor inject, logger).
+          optional=true -> KHÔNG lọt vào jar chạy thật: nó chỉ là annotation processor
+          lúc biên dịch, runtime không cần. spring-boot-maven-plugin cũng tự loại nó
+          khỏi fat jar.
+        -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
@@ -71,6 +84,11 @@
         </dependency>
         <!-- Integration test với Postgres thật (CLAUDE.md §5: không mock cái Testcontainers chạy được) -->
         <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-spring-boot3</artifactId>
+            <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-testcontainers</artifactId>
             <scope>test</scope>
@@ -92,6 +110,26 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+            <!--
+              Khai báo Lombok làm annotation processor một cách TƯỜNG MINH.
+              Chỉ để lombok trong <dependencies> là KHÔNG đủ: javac không tự quét
+              classpath tìm processor trong cấu hình này, nên @Getter lặng lẽ không
+              sinh ra gì — compile báo "cannot find symbol: method getStatus()".
+              ${lombok.version} do spring-boot-starter-parent quản.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

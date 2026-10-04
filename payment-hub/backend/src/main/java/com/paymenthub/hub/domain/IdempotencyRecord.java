@@ -1,24 +1,16 @@
 package com.paymenthub.hub.domain;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.Instant;
 
-/**
- * Sổ idempotency: trả lời BA câu hỏi khi một request tới
- *   ① khoá này đã thấy chưa?          -> UNIQUE(merchant_id, idempotency_key)
- *   ② có đúng CÙNG một request không? -> requestFingerprint
- *   ③ lần trước tới đâu, kết quả gì?  -> state + responseStatus + responseBody
- *
- * Nằm CÙNG database với payments để ghi trong CÙNG transaction -> không có dual-write.
- */
+@Getter
 @Entity
 @Table(name = "idempotency_records")
 public class IdempotencyRecord {
-
     public enum State { IN_PROGRESS, COMPLETED }
 
-    /** TTL của sổ. Sau đó dọn; lớp chống trùng #2 (partial unique) vẫn canh tiếp. */
     public static final java.time.Duration TTL = java.time.Duration.ofHours(24);
 
     @Id
@@ -44,7 +36,6 @@ public class IdempotencyRecord {
     @Column(name = "response_status")
     private Integer responseStatus;
 
-    /** NGUYÊN VĂN response đã phát ra. Không dựng lại từ DB (trạng thái có thể đã đổi). */
     @Column(name = "response_body")
     private String responseBody;
 
@@ -86,10 +77,4 @@ public class IdempotencyRecord {
     public boolean matchesFingerprint(String fingerprint) {
         return requestFingerprint.equals(fingerprint);
     }
-
-    public Long getId() { return id; }
-    public String getIdempotencyKey() { return idempotencyKey; }
-    public Integer getResponseStatus() { return responseStatus; }
-    public String getResponseBody() { return responseBody; }
-    public Long getPaymentId() { return paymentId; }
 }

@@ -12,27 +12,12 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.nio.charset.StandardCharsets;
 
-/**
- * Integration test trên Postgres THẬT (CLAUDE.md §5: không mock cái Testcontainers chạy được).
- * Cần DB thật vì những thứ đang test nằm Ở TRONG DB: partial unique index, UNIQUE
- * (merchant_id, idempotency_key), và hành vi abort transaction của PostgreSQL.
- */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 public abstract class AbstractIntegrationTest {
-
-    /** Khớp với seed trong V2__payments.sql. */
     protected static final String API_KEY = "mk_dev_demo";
     protected static final String SECRET = "sk_dev_demo_secret_do_not_use_in_prod";
     protected static final String RETURN_URL = "https://shop.example.com/orders/result";
 
-    /**
-     * SINGLETON CONTAINER — cố ý KHÔNG dùng @Container/@Testcontainers.
-     *
-     * Với @Container, extension dựng container MỚI cho từng test class, nhưng Spring
-     * context thì được CACHE dùng lại -> Flyway không chạy lại -> DB rỗng -> không tìm
-     * thấy merchant -> mọi request trả 401. Tự start một lần cho cả JVM thì hết lệch.
-     * (Container tự tắt khi JVM dừng, Ryuk dọn nốt.)
-     */
     @SuppressWarnings("resource")
     static final PostgreSQLContainer<?> POSTGRES =
             new PostgreSQLContainer<>("postgres:16-alpine")
@@ -49,7 +34,7 @@ public abstract class AbstractIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
-        // Tắt job nền để nó không can thiệp vào test; test nào cần thì gọi job trực tiếp.
+
         registry.add("hub.jobs.expiry.fixed-delay-ms", () -> "3600000");
         registry.add("hub.jobs.idempotency-cleanup.fixed-delay-ms", () -> "3600000");
     }
@@ -58,10 +43,6 @@ public abstract class AbstractIntegrationTest {
     @Autowired protected TestRestTemplate rest;
     @Autowired protected HmacSigner signer;
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Ký request đúng như một merchant thật sẽ làm.
-    // Chuỗi ký: METHOD \n PATH \n TIMESTAMP \n IDEMPOTENCY_KEY \n SHA256(BODY)
-    // ─────────────────────────────────────────────────────────────────────────
     protected HttpHeaders signedHeaders(String method, String path, String idempotencyKey,
                                         String body) {
         return signedHeaders(method, path, idempotencyKey, body,
@@ -95,7 +76,6 @@ public abstract class AbstractIntegrationTest {
     }
 
     protected String createBody(String orderCode, long amount, String returnUrl) {
-        // snake_case — đúng contract (xem spring.jackson.property-naming-strategy)
         return """
                {"order_code":"%s","amount":%d,"currency":"VND","return_url":"%s",\
                "description":"test"}""".formatted(orderCode, amount, returnUrl);
@@ -105,12 +85,6 @@ public abstract class AbstractIntegrationTest {
         return "http://localhost:" + port + path;
     }
 
-    /**
-     * checkout_url trả về mang host/port của hub.checkout.base-url (cấu hình cho môi trường
-     * thật), còn test server chạy ở port random -> phải dựng lại URL cục bộ từ token.
-     * Merchant thật thì dùng checkout_url NGUYÊN XI; đây là ràng buộc của test, không phải
-     * gợi ý rằng merchant được phép tự ghép URL.
-     */
     protected String localCheckoutUrl(String createdResponseBody) {
         String checkoutUrl = HmacAuthenticationTest.extract(createdResponseBody, "checkout_url");
         String token = checkoutUrl.substring(checkoutUrl.lastIndexOf('/') + 1);

@@ -10,27 +10,12 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 
-/**
- * Dựng body lỗi application/problem+json (RFC 7807).
- *
- * Field CHUẨN:  type (URI định danh LOẠI lỗi) · title (mô tả loại) · status ·
- *               detail (mô tả LẦN NÀY) · instance (URI lần xảy ra).
- * Field MỞ RỘNG: error_code (hợp đồng ổn định cho máy đọc) · các extension khác.
- *
- * Quy ước: chỉ `error_code` + `status` là hợp đồng. `detail` là cho NGƯỜI đọc,
- * được phép đổi tự do, merchant không nên parse nó.
- *
- * Dùng cả ở filter (chưa vào Spring MVC nên @ControllerAdvice không bắt được).
- */
 @Component
+@RequiredArgsConstructor
 public class ProblemWriter {
-
     private final ObjectMapper objectMapper;
-
-    public ProblemWriter(ObjectMapper objectMapper) {
-        this.objectMapper = objectMapper;
-    }
 
     public Map<String, Object> body(ErrorCode code, String detail, String instance,
                                     Map<String, Object> extensions) {
@@ -57,10 +42,6 @@ public class ProblemWriter {
                 body(code, publicDetail(e), instance, e.extensions()));
     }
 
-    /**
-     * Lỗi xác thực: KHÔNG kể chi tiết ra ngoài (kể = giúp kẻ tấn công dò).
-     * Chi tiết đã được log ở filter.
-     */
     private String publicDetail(BusinessException e) {
         return switch (e.errorCode()) {
             case INVALID_SIGNATURE, REQUEST_EXPIRED -> e.errorCode().defaultDetail();
